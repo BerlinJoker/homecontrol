@@ -1,5 +1,5 @@
 # homecontrol
-A small universal remote for our smarthome, built around a Liligo TTGO and a clickwheel, heavily inspired by homething.io
+A small universal remote for our smarthome, built around a Lilygo TTGO and a clickwheel, heavily inspired by homething.io
 
 This repo is more a draft of notes at this time, so don't expect too much. Also: I'm not a software engineer, so lower your expectations when it comes to code quality.
 
