@@ -1,0 +1,1459 @@
+esphome:
+  name: ttgo
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  password: ""
+
+ota:
+  - platform: esphome
+    password: ""
+
+wifi:
+  ssid: "xxxxxxxxxx"
+  password: "xxxxxxxxxxx"
+  fast_connect: true #shortens the connection time and therefore the time until the device is usable
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Ttgo Fallback Hotspot"
+    password: "xxxxxxxxxxx"
+
+captive_portal:
+    
+output: #makes the backlight of the display a straightforward controllable light within esphome and HA
+  - platform: ledc
+    pin: 4
+    id: gpio_04_backlight_pwm
+
+light: #makes the backlight of the display a straightforward controllable light within esphome and HA
+  - platform: monochromatic
+    output: gpio_04_backlight_pwm
+    name: "Display Backlight"
+    id: back_light
+    restore_mode: ALWAYS_ON
+    
+    
+font:
+  - file: "materialdesignicons-webfont.ttf"
+    id: icons_20 #naming is wrong, as I later increased to 30, needs to be cleaned up still
+    size: 30
+    bpp: 4 #smoothes the font on the display, the difference to not using this option is huge
+    glyphs: [
+      "\U000F050F", #thermometer
+      "\U000F0F54", #home thermometer
+      "\U000F02DC", #home
+      "\U000F0531", #tree
+      "\U000F07E4", #co2
+      "\U000F11DB", #window closed
+      "\U000F11DC", #window open
+      "\U000F0084", #battery charging
+      "\U000F075B", #music off
+      "\U000F075A", #music on
+      "\U000F058E", #humidity
+      "\U000F140B", #lightningbolt
+      "\U000F024A", #flower
+      "\U000F09A0", #shower
+      "\U000F09A1", #showerhead
+      "\U000F058F", #waterpump
+      "\U000F052C", #train
+      "\U000F1442", #clock
+      "\U000F0E4F", #light off
+      "\U000F06E8", #light on
+      "\U000F02E3", #bed
+      "\U000F125F", #bookshelf
+      "\U000F04B9", #sofa
+      "\U000F1B94", #bed clock
+      "\U000F1481", #watering can
+      "\U000F0335", #lightbulb
+      "\U000F0493", #cog
+      "\U000F1616", #connection
+      "\U000F07C0", #desktop classic
+      "\U000F042A", #printer
+      "\U000F0AAB", #desktop tower
+      "\U000F07F4", #tv classic
+      "\U000F0425", #power
+      "\U000F075D", #volume plus
+      "\U000F075E", #volume minus
+      "\U000F040A", #play
+      "\U000F03E4", #pause
+      "\U000F075F", #mute
+      "\U000F1903"  #home lightningbolt
+      ]
+  - file: "materialdesignicons-webfont.ttf"
+    id: icons_60
+    size: 60
+    bpp: 4
+    glyphs: [
+      "\U000F050F", #thermometer
+      "\U000F0F54", #home thermometer
+      "\U000F02DC", #home
+      "\U000F0531", #tree
+      "\U000F07E4", #co2
+      "\U000F11DB", #window closed
+      "\U000F11DC", #window open
+      "\U000F0084", #battery charging
+      "\U000F075B", #music off
+      "\U000F075A", #music on
+      "\U000F058E", #humidity
+      "\U000F140B", #lightningbolt
+      "\U000F024A", #flower
+      "\U000F09A0", #shower
+      "\U000F09A1", #showerhead
+      "\U000F058F", #waterpump
+      "\U000F052C", #train
+      "\U000F1442", #clock
+      "\U000F0E4F", #light off
+      "\U000F06E8", #light on
+      "\U000F02E3", #bed
+      "\U000F125F", #bookshelf
+      "\U000F04B9", #sofa
+      "\U000F1B94", #bed clock
+      "\U000F1481", #watering can
+      "\U000F0335", #lightbulb
+      "\U000F0493", #cog
+      "\U000F1616", #connection
+      "\U000F1903"  #home lightningbolt
+      ]
+    
+    
+# Define colors, actually not used atm
+color:
+  - id: color_text
+    red: 100%
+    green: 0%
+    blue: 0%
+    white: 0%
+    
+    
+sensor:
+  - platform: homeassistant
+    id: outside_temperature
+    entity_id: sensor.lumi_lumi_weather_a5f3bb07_temperature #one of my first HA sensors, horrible name, I know
+    internal: true
+    #slighly annoying: esphome won't compile your code if the label you're trying to update here doesn't exist within one of the LVGL pages
+    #you will therefore find quite a few unused skipped pages further down, as every page I remove would require an immediate cleanup in the sensor section as well
+    on_value:
+      - lvgl.label.update:
+          id: outside_temp
+          text:
+            format: "%.1f°C" #number with one digit behind the comma/dot, and °C as a unit
+            args: [ 'x' ]
+      - lvgl.label.update: 
+          id: outside_temp_info
+          text:
+            format: "%.1f°C"
+            args: [ 'x' ]
+            
+            
+  - platform: homeassistant
+    id: outside_humidity
+    entity_id: sensor.lumi_lumi_weather_a5f3bb07_humidity
+    internal: true
+    on_value:
+      - lvgl.label.update:
+          id: outside_hum
+          text:
+            format: "%.0f%%" #number with zero digits behind the comma/dot, double percent sign so that it gets actually displayed as one in the lable
+            args: [ 'x' ]
+      - lvgl.label.update:
+          id: outside_hum_info
+          text:
+            format: "%.0f%%"
+            args: [ 'x' ]
+            
+            
+  - platform: homeassistant
+    id: bathroom_humidity
+    entity_id: sensor.lumi_lumi_weather_humidity
+    internal: true
+    on_value:
+      - lvgl.label.update:
+          id: bathroom_hum
+          text:
+            format: "%.0f%%"
+            args: [ 'x' ]
+            
+            
+  - platform: homeassistant
+    id: bathroom_temperature
+    entity_id: sensor.lumi_lumi_weather_temperature
+    on_value:
+      - lvgl.label.update:
+          id: bathroom_temp
+          text:
+            format: "%.0f°C"
+            args: [ 'x' ]
+            
+
+    
+
+
+            
+  - platform: homeassistant
+    id: phone_volume 
+    #work in progress for a future music (volume) control for spotify running on our phones, not used yet
+    entity_id: sensor.sm_XXXXX_volume_level_music
+    internal: true
+    
+  - platform: homeassistant
+    id: hallway_co2
+    entity_id: sensor.hallway_co2
+    internal: true
+    on_value:
+      - lvgl.indicator.update:
+          id: val_needle2 #adapted from the esphome lvgl cookbook, therefore still generic names
+          value: !lambda return x;
+      - lvgl.label.update:
+          id: val_text2
+          text:
+            format: "%.0f"
+            args: [ 'x' ]
+      - lvgl.indicator.update:
+          id: val_needle2dark
+          value: !lambda return x;
+      - lvgl.label.update:
+          id: val_text2dark
+          text:
+            format: "%.0f"
+            args: [ 'x' ]
+      - lvgl.label.update:
+          id: co2
+          text:
+            format: "%.0f"
+            args: [ 'x' ]
+    
+  - platform: homeassistant
+    id: hallway_temperature
+    entity_id: sensor.hallway_temperature
+    internal: true
+    on_value:
+      - lvgl.label.update:
+          id: inside_temp
+          text:
+            format: "%.1f°C"
+            args: [ 'x' ]
+      - lvgl.label.update:
+          id: inside_temp_dark
+          text:
+            format: "%.1f°C"
+            args: [ 'x' ]
+      - lvgl.label.update:
+          id: inside_temp_info
+          text:
+            format: "%.1f°C"
+            args: [ 'x' ]
+
+  - platform: homeassistant
+    id: hallway_humidity
+    entity_id: sensor.hallway_humidity
+    internal: true
+    on_value:
+      - lvgl.label.update:
+          id: inside_hum
+          text:
+            format: "%.0f%%"
+            args: [ 'x' ]
+      - lvgl.label.update:
+          id: inside_hum_dark
+          text:
+            format: "%.0f%%"
+            args: [ 'x' ]  
+    
+  - platform: homeassistant
+    id: current_watt
+    entity_id: sensor.current_watt
+    internal: true
+    on_value:
+      - lvgl.label.update:
+          id: wattage
+          text:
+            format: "%.0fW" #number without digit behind the comma/dot, W as the unit
+            args: [ 'x' ]
+      - lvgl.label.update:
+          id: wattage_dark
+          text:
+            format: "%.0fW"
+            args: [ 'x' ]
+      - lvgl.label.update:
+          id: wattage_info
+          text:
+            format: "%.0fW"
+            args: [ 'x' ]
+    
+            
+            
+  - platform: rotary_encoder
+    name: "Rotary Encoder"
+    id: rotary
+    filters:
+    - throttle: 0.01s #works as an okay debounce, might fine-tune later
+    pin_a:
+      number: GPIO13
+      mode:
+        input: true
+        pullup: true
+    pin_b:
+      number: GPIO12
+      mode:
+        input: true
+        pullup: true
+        
+    # played around with the clickwheel before using it for LVGL, here to control the brightness of the backlight
+    #on_clockwise:
+    #  then:
+    #    - light.dim_relative:
+    #        id: back_light
+    #        relative_brightness: 2%
+    #on_anticlockwise:
+    #  then:
+    #    - light.dim_relative:
+    #        id: back_light
+    #        relative_brightness: -2%
+    
+    
+  - platform: adc 
+    pin: GPIO34 #the ttgo provides the current voltage of the connected battery via GPIO34, but cut in half via a voltage divider
+    name: "Battery voltage"
+    accuracy_decimals: 2
+    unit_of_measurement: "V"
+    update_interval: 30s
+    filters:
+      - multiply: 2 #to undo the 50%ing of the voltage divider on the TTGO board
+    attenuation: auto #might need to switch to 12db, as I get a suspiciously high voltage for when the battery gets charged (4.7 volts, might also be a faulty charging circuit on the board though)
+    icon: mdi:battery
+    id: batlevel
+    device_class: battery
+    entity_category: diagnostic
+    on_value:
+      - lvgl.label.update:
+          id: battery_volts
+          text:
+            format: "%.2fV"
+            args: [ 'x' ]
+      - lvgl.label.update:
+          id: battery_voltage_settings
+          text:
+            format: "%.2fV"
+            args: [ 'x' ]
+            
+            
+text_sensor:
+  - platform: homeassistant
+    id: next_subway #my HA instance knows the next 2 departure times for our nearest subway station via a REST api of our public transport company
+    entity_id: sensor.next_subway_myneareststation
+    internal: true
+    on_value:
+      - lvgl.label.update:
+          id: lbl_next_subway
+          text:
+            format: "%s" # I didn't bother to treat the departure times as proper timestamps, therefore also here they get handled as strings
+            args: [ 'x.c_str()' ]
+            
+  - platform: homeassistant
+    id: second_subway
+    entity_id: sensor.second_subway_myneareststation
+    internal: true
+    on_value:
+      - lvgl.label.update:
+          id: lbl_second_subway
+          text:
+            format: "%s"
+            args: [ 'x.c_str()' ]
+
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO35 #hardware button on the TTGO, next to the usb connector, not used by me anymore, as they disappear behind the housing
+      inverted: true
+    id: tdisplay_button_input_1
+    on_press:
+      then:
+        - lvgl.page.next:
+            #animation: OUT_LEFT
+            #time: 300ms
+            
+            #page change animations supposedly are quite performance/resource hungry, I got advised against using them
+            
+            
+  - platform: gpio
+    pin:
+      number: GPIO0 #hardware button on the TTGO, next to the usb connector, not used by me anymore, as they disappear behind the housing
+      inverted: true
+    id: tdisplay_button_input_0
+    on_press:
+      then:
+        - lvgl.page.previous:
+            #animation: OUT_RIGHT
+            #time: 300ms
+            
+            
+  - platform: gpio
+    pin:
+      number: GPIO15
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+    id: rotary_button #the center button of the clickwheel, no further actions defined anymore, as used directly by LVGL
+    #on_press:
+    #  then:
+    #    - lvgl.page.next:
+    #        animation: OUT_LEFT
+    #        time: 300ms
+    
+    
+  - platform: gpio
+    pin:
+      number: GPIO21
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+    id: up_button #one of the 4 outer buttons of the clickwheel, no fixed usecase within LVGL, so use them for whatever you like most
+    on_press:
+      then:
+        - light.dim_relative:
+            id: back_light
+            relative_brightness: 10%
+    
+    
+  - platform: gpio
+    pin:
+      number: GPIO22
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+    id: right_button #one of the 4 outer buttons of the clickwheel, no fixed usecase within LVGL, so use them for whatever you like most
+    on_press:
+      then:
+        - lvgl.page.next:
+        - lambda: |- 
+            lv_disp_trig_activity(NULL); 
+#LVGL's idle detection is based on touchscreen and rotary encoder usage, therefore non-LVGL-buttons need to "fake" a screen activity to avoid the on_idle logic to kick in. This lambda basically resets the idle timer to zero if this button is used
+    
+    
+  - platform: gpio
+    pin:
+      number: GPIO17
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+    id: down_button #one of the 4 outer buttons of the clickwheel, no fixed usecase within LVGL, so use them for whatever you like most
+    on_press:
+      then:
+        - light.dim_relative:
+            id: back_light
+            relative_brightness: -10%
+    
+    
+  - platform: gpio
+    pin:
+      number: GPIO2
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+    id: left_button #one of the 4 outer buttons of the clickwheel, no fixed usecase within LVGL, so use them for whatever you like most
+    on_press:
+      then:
+        - lvgl.page.previous:
+        - lambda: |- 
+            lv_disp_trig_activity(NULL);
+#LVGL's idle detection is based on touchscreen and rotary encoder usage, therefore non-LVGL-buttons need to "fake" a screen activity to avoid the on_idle logic to kick in. This lambda basically resets the idle timer to zero if this button is used
+        
+  - platform: gpio
+    pin:
+      number: GPIO27 
+      #the pcb has a reed relais connected to the usb charging power on the trigger side, and this GPIO on the switch side
+      #docking or undocking the remote triggers this GPIO, which I then use for page switching logic and in the future potentially deep sleep stuff
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+    id: dock_status
+    name: "dock status"
+    on_press:
+      then:
+        - lvgl.page.show:
+            id: indoor_infos_dark #shows an info screen when docked
+    on_release:
+      then:
+        - lvgl.page.show:
+            id: control_page #jumps to the control button page when undocked
+    on_state: #this whole block just updates the docking status label on the settings/info page of the remote
+      if:
+        condition:
+          binary_sensor.is_on: dock_status
+        then:
+          - lvgl.label.update:
+             id: docking_status
+             text: docked
+        else:
+          - lvgl.label.update:
+             id: docking_status
+             text: notdocked
+        
+           
+        
+  - platform: homeassistant
+    id: bathroom_window
+    entity_id: binary_sensor.lumi_lumi_sensor_magnet_aq2_4420d107_on_off #very first HA sensor ever set up, sue me for the name, go on
+    internal: true
+    publish_initial_state: true
+    on_state: #updates the big window icon on the bathroom page with the correct status of the bathroom window
+      if:
+        condition:
+          binary_sensor.is_on: bathroom_window #open
+        then:
+          - lvgl.label.update:
+             id: bathroom_window_icon
+             text: "\U000F11DC"
+        else: #closed
+          - lvgl.label.update:
+             id: bathroom_window_icon
+             text: "\U000F11DB"
+
+
+
+
+# SPI needed for the display, copied those values from the esphome docs
+spi:
+  clk_pin: GPIO18
+  mosi_pin: GPIO19
+
+display:
+  - platform: ili9xxx #there is code flying around online which uses a different platform for this board/display, but that's outdated
+    model: st7789v
+    id: my_display
+    dc_pin: GPIO16
+    cs_pin: GPIO05
+    reset_pin: GPIO23
+    #TTGO TDisplay 135x240
+    dimensions:
+      height: 240
+      width: 135
+      offset_height: 40 
+      offset_width: 52
+    # Required or the colors are all inverted, and Black screen is White
+    invert_colors: true
+    auto_clear_enabled: false
+    update_interval: never #this one is important, don't put a time here when planning to use LVGL, the older code examples sometimes have that
+
+      
+      
+lvgl:
+  displays:
+    - my_display
+  encoders: #as defined further up in sensors section
+    sensor: rotary
+    enter_button: rotary_button
+  #keypads:
+  #  home: right_button
+  #  end: left_button
+  # I did try to include some of the outer clickwheel buttons as fake LVGL keypad buttons, but it never worked, probably config error by me
+  style_definitions: #the whole style and theme usage is rudimentary at the moment, this needs major cleanup and generalisation
+    - id: standardbutton
+      width: 130
+      height: 40
+      bg_color: 0x3b3b3b
+      pad_left: 2
+      radius: 0
+    - id: smallbutton
+      width: 60
+      height: 40
+      bg_color: 0x3b3b3b
+      pad_left: 2
+      radius: 0
+  theme:
+    button:
+      focused:
+        bg_color: 0x262c7a
+  on_idle: #minimal idle detection usage for now, when the remote isn't used for 30 seconds, it jumps to the first infoscreen. Planned: more granular behaviour, deep sleep scenarios etc.
+    - timeout: 30s
+      then:
+        - lvgl.page.show: indoor_infos_dark
+  pages:           
+    - id: indoor_infos_dark 
+      #I only later switched to the dark theme as the default, therefore tons of references to the old white-background pages still around
+      scrollbar_mode: "OFF"
+      bg_color: 0x000000
+      widgets:
+        - label:
+            text: "\U000F050F" #thermometer 
+            text_font: icons_20
+            text_color: 0xFFFFFF
+            x: 2
+            y: 50
+        - label:
+            text: "\U000F058E" #humidity
+            text_font: icons_20
+            text_color: 0xFFFFFF
+            x: 2
+            y: 80
+        - label:
+            text: "\U000F140B" #lightning icon, for the power consumption line
+            text_font: icons_20
+            text_color: 0xFFFFFF
+            x: 2
+            y: 110
+        - label:
+            text: "\U000F02DC" #home icon in the upper right corner
+            text_font: icons_20
+            text_color: 0xFFFFFF
+            x: 105
+            y: 2
+        - label:
+            id: inside_temp_dark
+            text: "0"
+            text_font: montserrat_30 #one of the by default available font sizes, the LVGL esphome docs list the available ones
+            text_color: 0xFFFFFF
+            x: 30
+            y: 50
+        - label:
+            id: inside_hum_dark
+            text: "0"
+            text_font: montserrat_28
+            text_color: 0xFFFFFF
+            x: 30
+            y: 80
+        - label:
+            id: wattage_dark
+            text: "0"
+            text_font: montserrat_26
+            text_color: 0xFFFFFF
+            x: 30
+            y: 110
+            
+        - obj: #semi-circle gauge adapted from the lvgl esphome cookbook
+              height: 120
+              width: 120
+              x: 2
+              y: 150
+              bg_color: 0x000000
+              border_width: 0
+              pad_all: 4
+              widgets:
+                - meter:
+                    height: 100%
+                    width: 100%
+                    border_width: 0
+                    bg_opa: TRANSP
+                    align: CENTER
+                    scales:
+                      - range_from: 400
+                        range_to: 1000
+                        angle_range: 180 # sets the total angle to 180 = starts mid left and ends mid right
+                        ticks:
+                          count: 0
+                        indicators:
+                          - line:
+                              id: val_needle2dark
+                              color: 0x000000
+                              width: 8
+                              r_mod: 12 # sets line length by this much difference from the scale default radius
+                              value: -2
+                          - arc: # first half of the scale background
+                              color: 0x00FF00
+                              r_mod: 10 # radius difference from the scale default radius
+                              width: 31
+                              start_value: 400
+                              end_value: 700
+                          - arc: # first half of the scale background
+                              color: 0xFFFF00
+                              r_mod: 10 # radius difference from the scale default radius
+                              width: 31
+                              start_value: 700
+                              end_value: 900
+                          - arc: # second half of the scale background
+                              color: 0xFF3000
+                              r_mod: 10
+                              width: 31
+                              start_value: 900
+                              end_value: 1000
+                - obj: # to cover the middle part of meter indicator line
+                    height: 73
+                    width: 73
+                    radius: 36
+                    align: CENTER
+                    border_width: 0
+                    bg_color: 0x000000
+                    pad_all: 0
+                - label: # gauge numeric indicator
+                    id: val_text2dark
+                    text_font: montserrat_18
+                    text_color: 0xFFFFFF
+                    align: CENTER
+                    y: -10
+                    text: "0"
+                   
+    - id: infos_big #work in progress for a new info page with bigger fonts, for better readability from a bigger distance, when the remote is docked
+      scrollbar_mode: "OFF"
+      bg_color: 0x000000
+      widgets:
+        - label:
+            text: "20°"
+            text_font: montserrat_48
+            text_color: 0xFFFFFF
+            x: 2
+            y: 2
+        - label: 
+            text: "750"
+            text_font: montserrat_36
+            text_color: 0xFF0000
+            x: 2
+            y: 60
+            
+
+    - id: indoor_infos #original white-themed info page, not used anymore
+      skip: true #important: skipping a page just impacts if it gets displayed when flipping through pages. On boot by default still the first page gets shown, also when skip is set to true. Had to move this page further down in the code because of that
+      scrollbar_mode: "OFF"
+      widgets:
+        - label:
+            text: "\U000F050F" #thermometer
+            text_font: icons_20
+            x: 2
+            y: 50
+        - label:
+            text: "\U000F058E" #humidity
+            text_font: icons_20
+            x: 2
+            y: 80
+        - label:
+            text: "\U000F140B" #lightning
+            text_font: icons_20
+            x: 2
+            y: 110
+        - label:
+            text: "\U000F02DC" #home
+            text_font: icons_20
+            x: 105
+            y: 2
+        - label:
+            id: inside_temp
+            text: "0"
+            text_font: montserrat_30
+            x: 30
+            y: 50
+        - label:
+            id: inside_hum
+            text: "0"
+            text_font: montserrat_28
+            x: 30
+            y: 80
+        - label:
+            id: wattage
+            text: "0"
+            text_font: montserrat_26
+            x: 30
+            y: 110
+            
+        - obj:
+              height: 120
+              width: 120
+              x: 2
+              y: 150
+              bg_color: 0xFFFFFF
+              border_width: 0
+              pad_all: 4
+              widgets:
+                - meter:
+                    height: 100%
+                    width: 100%
+                    border_width: 0
+                    bg_opa: TRANSP
+                    align: CENTER
+                    scales:
+                      - range_from: 400
+                        range_to: 1000
+                        angle_range: 180 # sets the total angle to 180 = starts mid left and ends mid right
+                        ticks:
+                          count: 0
+                        indicators:
+                          - line:
+                              id: val_needle2
+                              width: 8
+                              r_mod: 12 # sets line length by this much difference from the scale default radius
+                              value: -2
+                          - arc: # first half of the scale background
+                              color: 0x00FF00
+                              r_mod: 10 # radius difference from the scale default radius
+                              width: 31
+                              start_value: 400
+                              end_value: 700
+                          - arc: # first half of the scale background
+                              color: 0xFFFF00
+                              r_mod: 10 # radius difference from the scale default radius
+                              width: 31
+                              start_value: 700
+                              end_value: 900
+                          - arc: # second half of the scale background
+                              color: 0xFF3000
+                              r_mod: 10
+                              width: 31
+                              start_value: 900
+                              end_value: 1000
+                - obj: # to cover the middle part of meter indicator line
+                    height: 73
+                    width: 73
+                    radius: 36
+                    align: CENTER
+                    border_width: 0
+                    bg_color: 0xFFFFFF
+                    pad_all: 0
+                - label: # gauge numeric indicator
+                    id: val_text2
+                    text_font: montserrat_18
+                    align: CENTER
+                    y: -10
+                    text: "0"
+                    
+                    
+
+
+        
+    - id: outdoor_infos
+      #when using a rotary encoder, all buttons need to be in one group, they get put into the default group by LVGL
+      #Problem: you then scroll along all buttons, also the ones not on the page you are on right now.
+      #Workaround: only enable the buttons/widgets of the page you enter, and disabling them when you leave the page. 
+      #needs to be done for every page that has clickable buttons or other interactive widgets. 
+      #not a problem when only using a touchscreen
+      #I do have a bug around it somewhere though, might add a "disable everything first on boot" for a "clean slate"
+      on_load: 
+          then:
+            - lvgl.widget.enable:
+                id: btn_pump
+            - lvgl.widget.focus: #puts the focus on the first/only button of a page, therefore you can click the button on the screen with the center button of the clickwheel without having to "navigate" to the button on the screen first by scrolling
+                id: btn_pump
+      on_unload:
+          then:
+            - lvgl.widget.disable:
+                id: btn_pump
+      scrollbar_mode: "OFF"
+      bg_color: 0x000000 
+      widgets:
+        - label:
+            text: "\U000F050F" #thermometer
+            text_font: icons_20
+            text_color: 0xFFFFFF
+            x: 2
+            y: 50
+        - label:
+            text: "\U000F058E" #humidity
+            text_font: icons_20
+            text_color: 0xFFFFFF
+            x: 2
+            y: 80
+        - label:
+            text: "\U000F024A" #flower
+            text_font: icons_20
+            text_color: 0xFFFFFF
+            x: 2
+            y: 110
+        - label:
+            text: "\U000F0531" #tree
+            text_font: icons_20
+            text_color: 0xFFFFFF
+            x: 105
+            y: 2
+        - label:
+            id: outside_temp
+            text: "0"
+            text_font: montserrat_30
+            text_color: 0xFFFFFF
+            x: 30
+            y: 50
+        - label:
+            id: outside_hum
+            text: "0"
+            text_font: montserrat_30
+            text_color: 0xFFFFFF
+            x: 30
+            y: 80
+        - label:
+            text: "-"
+            text_font: montserrat_30
+            text_color: 0xFFFFFF
+            x: 30
+            y: 110
+        - button:
+            x: 2
+            y: 150
+            styles: standardbutton
+            id: btn_pump #currently without function, will later be linked to the plant watering script within HA
+            checkable: false
+            widgets:
+              - label:
+                  align: CENTER
+                  text_font: icons_20
+                  text_color: 0xFFFFFF
+                  text: "\U000F1481"
+ 
+    - id: tv_control #rudimentary tv remote control page
+      on_load:
+          then:
+            - lvgl.widget.enable:
+                id: tv_remote_buttons #for pages with multiple clickable buttons it's easier to make them a child widget of an obj widget, then on page load/onload only the parent widget needs to be enabled/disabled
+            - lvgl.widget.focus:
+                id: btn_tv_onoff
+      on_unload:
+          then:
+            - lvgl.widget.disable:
+                id: tv_remote_buttons
+      scrollbar_mode: "OFF"
+      bg_color: 0x000000 
+      widgets:
+        - obj:
+            id: tv_remote_buttons
+            x: 0
+            y: 0
+            align: CENTER
+            width: 135
+            height: 240
+            pad_all: 0
+            bg_opa: TRANSP
+            border_opa: TRANSP
+            widgets: #still want to reorder the buttons within the code, as the order in the code defines in which order they get selected when scrolling the clickwheel. The position on the screen is unaffected by the order in code, as they have hardcoded x and y positions
+              - button:
+                  x: 2
+                  y: 2
+                  styles: smallbutton
+                  radius: 65535 #tried to style the on/off button to be a round one, doesn't work, probably solvable when cleaning up styles/themes
+                  width: 40
+                  id: btn_tv_onoff
+                  checkable: false
+                  #the remote doesn't have its own IR diode yet, so for now I'm using a separate breadboard ir blaster that is its own esphome node, and which I can trigger via HA action calls
+                  on_click:
+                      - homeassistant.action:
+                          action: button.press
+                          data:
+                            entity_id: button.sonytvtoggle
+                  widgets:
+                    - label:
+                        align: CENTER
+                        text_font: icons_20
+                        text_color: 0xFFFFFF
+                        text: "\U000F0425"
+              - button:
+                  x: 2
+                  y: 60
+                  styles: smallbutton
+                  id: btn_tv_volumeplus
+                  checkable: false
+                  on_click:
+                      - homeassistant.action:
+                          action: button.press
+                          data:
+                            entity_id: button.sonytvvolumeup
+                  widgets:
+                    - label:
+                        align: CENTER
+                        text_font: icons_20
+                        text_color: 0xFFFFFF
+                        text: "\U000F075D"
+              - button:
+                  x: 65
+                  y: 60
+                  styles: smallbutton
+                  id: btn_tv_volumeminus
+                  checkable: false
+                  on_click:
+                      - homeassistant.action:
+                          action: button.press
+                          data:
+                            entity_id: button.sonytvvolumedown
+                  widgets:
+                    - label:
+                        align: CENTER
+                        text_font: icons_20
+                        text_color: 0xFFFFFF
+                        text: "\U000F075E"
+              - button:
+                  x: 2
+                  y: 120
+                  styles: smallbutton
+                  id: btn_tv_pause
+                  checkable: false
+                  on_click:
+                      - homeassistant.action:
+                          action: button.press
+                          data:
+                            entity_id: button.sonytvpause
+                  widgets:
+                    - label:
+                        align: CENTER
+                        text_font: icons_20
+                        text_color: 0xFFFFFF
+                        text: "\U000F03E4"
+              - button:
+                  x: 65
+                  y: 120
+                  styles: smallbutton
+                  id: btn_tv_play
+                  checkable: false
+                  on_click:
+                      - homeassistant.action:
+                          action: button.press
+                          data:
+                            entity_id: button.sonytvplay
+                  widgets:
+                    - label:
+                        align: CENTER
+                        text_font: icons_20
+                        text_color: 0xFFFFFF
+                        text: "\U000F040A"
+              - button:
+                  x: 32
+                  y: 190
+                  styles: smallbutton
+                  id: btn_tv_mute
+                  checkable: false
+                  on_click:
+                      - homeassistant.action:
+                          action: button.press
+                          data:
+                            entity_id: button.sonytvmute
+                  widgets:
+                    - label:
+                        align: CENTER
+                        text_font: icons_20
+                        text_color: 0xFFFFFF
+                        text: "\U000F075F"
+        - label:
+            text: "\U000F07F4" #tv classic
+            text_font: icons_20
+            text_color: 0xFFFFFF
+            x: 105
+            y: 2
+
+
+      
+                  
+    - id: bathroom_infos
+      scrollbar_mode: "OFF"
+      bg_color: 0x000000 
+      widgets:
+        - label:
+            text: "\U000F050F" #thermometer
+            text_font: icons_20
+            text_color: 0xFFFFFF
+            x: 2
+            y: 50
+        - label:
+            text: "\U000F058E" #humidity
+            text_font: icons_20
+            text_color: 0xFFFFFF
+            x: 2
+            y: 80
+        #- label:
+        #    text: "\U000F11DC" #window
+        #    text_font: icons_20
+        #    text_color: 0xFFFFFF
+        #    x: 2
+        #    y: 110
+        - label:
+            text: "\U000F09A0" #shower
+            text_font: icons_20
+            text_color: 0xFFFFFF
+            x: 105
+            y: 2
+        - label:
+            id: bathroom_temp
+            text: "0"
+            text_font: montserrat_30
+            text_color: 0xFFFFFF
+            x: 30
+            y: 50
+        - label:
+            id: bathroom_hum
+            text: "0"
+            text_font: montserrat_30
+            text_color: 0xFFFFFF
+            x: 30
+            y: 80
+        #- label:
+        #    text: "closed"
+        #    text_font: montserrat_26
+        #    text_color: 0xFFFFFF
+        #    x: 30
+        #    y: 110
+        - label: #big window icon label that gets updated by the binary sensor from the sensor section
+            id: bathroom_window_icon
+            text: "\U000F11DC" #window
+            text_font: icons_60
+            text_color: 0xFFFFFF
+            x: 40
+            y: 140
+
+
+    - id: subway_infos
+      scrollbar_mode: "OFF"
+      bg_color: 0x000000 
+      widgets:
+        - label:
+            text: "\U000F1442" #clock
+            text_font: icons_20
+            text_color: 0xFFFFFF
+            x: 2
+            y: 50
+        - label:
+            text: "\U000F1442" #clock
+            text_font: icons_20
+            text_color: 0xFFFFFF
+            x: 2
+            y: 90
+        - label:
+            text: "\U000F052C" #train
+            text_font: icons_20
+            text_color: 0xFFFFFF
+            x: 105
+            y: 2
+        - label:
+            id: lbl_next_subway
+            text: "--:--" #placeholder text that is only shown until the remote has a connection to HA and pull in real data
+            text_font: montserrat_30
+            text_color: 0xFFFFFF
+            x: 40
+            y: 50
+        - label:
+            id: lbl_second_subway
+            text: "--:--"
+            text_font: montserrat_30
+            text_color: 0xFFFFFF
+            x: 40
+            y: 90
+            
+    - id: settings_page #rudimentary settings/system/info page, battery voltage, docking status, non-functional slider for screen brightness
+      scrollbar_mode: "OFF"
+      bg_color: 0x000000 
+      on_load:
+          then:
+            - lvgl.widget.enable:
+                id: sld_brightness
+            - lvgl.widget.focus:
+                id: sld_brightness
+                editing: true #this doesnt just move the focus on the slider, but automatically puts it in edit mode. The clickwheel then directly impacts the slider position after entering the page, without having to first go into edit mode manually
+      on_unload:
+          then:
+            - lvgl.widget.disable:
+                id: sld_brightness
+      widgets:
+        - label:
+            text: "\U000F0493" #cog
+            text_font: icons_20
+            text_color: 0xFFFFFF
+            x: 105
+            y: 2
+        - label:
+            text: "\U000F0084" #battery
+            text_font: icons_20
+            text_color: 0xFFFFFF
+            x: 2
+            y: 50
+        - label:
+            id: battery_voltage_settings
+            text: "0"
+            text_font: montserrat_30
+            text_color: 0xFFFFFF
+            x: 30
+            y: 50
+        - label:
+            text: "\U000F1616" #docked
+            text_font: icons_20
+            text_color: 0xFFFFFF
+            x: 2
+            y: 80
+        - label:
+            id: docking_status
+            text: "0"
+            text_font: montserrat_30
+            text_color: 0xFFFFFF
+            x: 30
+            y: 80
+        - slider:
+            id: sld_brightness
+            x: 2
+            y: 140
+            width: 130
+            value: 50
+            min_value: 1
+            max_value: 10
+            #originally I went with 10 and 100, but that takes ages to scroll through with a clickwheel. Will just multiply the value by 10 and use the result to set the backlight brightness, not implemented yet
+      
+
+    - id: info_page 
+      #old info page where I played around with pulling real sensor data in, also tried out the GRID layout option of LVGL
+      #I stopped using grid layouts alltogether, on a small screen with predefined content absolute positions work fine, and are more flexible
+      skip: true
+      widgets:
+        - obj:
+            align: CENTER
+            width: 135
+            height: 240
+            pad_all: 0
+            #pad_row: 6
+            #pad_column: 8
+            bg_opa: TRANSP
+            border_opa: TRANSP
+            layout:
+              type: GRID
+              grid_columns: [FR(20), FR(40), FR(40)] 
+              grid_rows: [FR(1), FR(1), FR(1), FR(1), FR(1)]
+            widgets:
+              - label:
+                  text: "\U000F02DC"
+                  text_font: icons_20
+                  grid_cell_column_pos: 0 # place the widget in
+                  grid_cell_row_pos: 0 # the corresponding cell
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+              - label:
+                  text: "0"
+                  id: inside_temp_info
+                  grid_cell_column_pos: 1 # place the widget in
+                  grid_cell_row_pos: 0 # the corresponding cell
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+              - label:
+                  text: "45%"
+                  id: inside_humidity
+                  grid_cell_column_pos: 2 # place the widget in
+                  grid_cell_row_pos: 0 # the corresponding cell
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+                  
+                  
+                  
+              - label:
+                  text: "0"
+                  id: co2
+                  grid_cell_column_pos: 1 # place the widget in
+                  grid_cell_row_pos: 1 # the corresponding cell
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+              - label:
+                  text: "0"
+                  id: wattage_info
+                  grid_cell_column_pos: 2 # place the widget in
+                  grid_cell_row_pos: 1 # the corresponding cell
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+                  
+                  
+                  
+              - label:
+                  text: "\U000F0531"
+                  text_font: icons_20
+                  grid_cell_column_pos: 0 # place the widget in
+                  grid_cell_row_pos: 2 # the corresponding cell
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+              - label:
+                  text: "0"
+                  id: outside_temp_info
+                  grid_cell_column_pos: 1 # place the widget in
+                  grid_cell_row_pos: 2 # the corresponding cell
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+              - label:
+                  text: "0"
+                  id: outside_hum_info
+                  grid_cell_column_pos: 2 # place the widget in
+                  grid_cell_row_pos: 2 # the corresponding cell
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+                  
+
+                  
+              - label:
+                  text: "\U000F0084"
+                  text_font: icons_20
+                  grid_cell_column_pos: 0 # place the widget in
+                  grid_cell_row_pos: 3 # the corresponding cell
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+              - label:
+                  text: "0"
+                  id: battery_volts
+                  grid_cell_column_pos: 1 # place the widget in
+                  grid_cell_row_pos: 3 # the corresponding cell
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+                  
+                  
+                  
+    - id: pc_control
+      #still non-functional page to switch on the pc and the printer in the work room via HA-controlled smart plugs
+      #switching off the PC will need a dedicated LVGL popup though, I don't want to accidently "unplug" a running machine
+      on_load:
+          then:
+            - lvgl.widget.enable:
+                id: printer_switch
+            - lvgl.widget.enable:
+                id: tower_switch
+            - lvgl.widget.focus:
+                id: printer_switch
+      on_unload:
+          then:
+            - lvgl.widget.disable:
+                id: printer_switch
+            - lvgl.widget.disable:
+                id: tower_switch
+      scrollbar_mode: "OFF"
+      bg_color: 0x000000 
+      widgets:
+        - label:
+            text: "\U000F07C0" #desktop tower
+            text_font: icons_20
+            text_color: 0xFFFFFF
+            x: 2
+            y: 50
+        - label:
+            text: "\U000F042A" #printer
+            text_font: icons_20
+            text_color: 0xFFFFFF
+            x: 2
+            y: 100
+        - label:
+            text: "\U000F0AAB" #desktop classic
+            text_font: icons_20
+            text_color: 0xFFFFFF
+            x: 105
+            y: 2
+        - switch:
+            id: printer_switch
+            x: 40
+            y: 100
+        - switch:
+            id: tower_switch
+            x: 40
+            y: 50
+      
+                  
+
+    
+    - id: control_page
+      #main page for triggering controls around the house via HA. Lights, amp, scripts for when we go to bed, potentially more in the future
+      #this page gets jumped to when the remote is picked up from the charging dock, under the assumption that someone wants to control something when they pick it up
+      bg_color: 0x000000 
+      on_load:
+          then:
+            - lvgl.widget.enable:
+                id: button_frame
+            - lvgl.widget.focus: #here it makes sense to focus on the button that triggers the most used device/script/... in the house, removes the need to use the clickwheel at least for that one when entering the page
+                id: btn_music_on
+      on_unload:
+          then:
+            - lvgl.widget.disable:
+                id: button_frame
+      widgets:
+        - obj:
+              width: 135
+              height: 240
+              pad_all: 0
+              id: button_frame
+              align: TOP_MID
+              scrollbar_mode: "OFF"
+              bg_opa: TRANSP
+              border_opa: TRANSP
+              #I tried out FLEX layout here, not sure if I will keep that. As I have more buttons than the page can show, I cannot use absolute positions here
+              layout: # enable the FLEX layout for the children widgets
+                type: FLEX
+                flex_flow: COLUMN # the order of the widgets starts top left
+                flex_align_cross: CENTER
+              widgets:
+                - button:
+                    styles: standardbutton
+                    id: btn_music_on
+                    checkable: false
+                    widgets:
+                      - label:
+                          align: CENTER
+                          text: "\U000F075A"
+                          text_font: icons_20
+                    on_click:
+                      - homeassistant.action:
+                          action: switch.turn_on
+                          data:
+                            entity_id: switch.musicbox
+                - button:
+                    styles: standardbutton
+                    id: btn_music_off
+                    checkable: false
+                    widgets:
+                      - label:
+                          align: CENTER
+                          text: "\U000F075B"
+                          text_font: icons_20
+                    on_click:
+                      - homeassistant.action:
+                          action: switch.turn_off
+                          data:
+                            entity_id: switch.musicbox
+                - button:
+                    styles: standardbutton
+                    id: btn_bedroom_on
+                    checkable: false
+                    widgets:
+                      - label:
+                          align: CENTER
+                          text: "\U000F02E3\U000F06E8"
+                          text_font: icons_20
+                    on_click:
+                      - homeassistant.action:
+                          action: switch.turn_on
+                          data:
+                            entity_id: switch.bedroom_cozylight
+                - button:
+                    styles: standardbutton
+                    id: btn_bedroom_off
+                    checkable: false
+                    widgets:
+                      - label:
+                          align: CENTER
+                          text: "\U000F02E3\U000F0E4F"
+                          text_font: icons_20
+                    on_click:
+                      - homeassistant.action:
+                          action: switch.turn_off
+                          data:
+                            entity_id: switch.bedroom_cozylight
+                - button:
+                    styles: standardbutton
+                    id: btn_headstart
+                    checkable: false
+                    widgets:
+                      - label:
+                          align: CENTER
+                          text: "\U000F1B94"
+                          text_font: icons_20
+                    on_click:
+                      - homeassistant.action:
+                          action: script.headstart_mode
+                - button:
+                    styles: standardbutton
+                    id: btn_bookshelf_light
+                    checkable: false
+                    widgets:
+                      - label:
+                          align: CENTER
+                          text: "\U000F125F\U000F0335" #combining multiple MDI, here e.g. "bookshelf" and "lightbulb"
+                          text_font: icons_20
+                    on_click:
+                      - homeassistant.action:
+                          action: light.toggle
+                          data:
+                            entity_id: light.bookshelf_e27_light
+                          
+                          
+                          
