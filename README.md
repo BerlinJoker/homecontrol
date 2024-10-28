@@ -6,7 +6,7 @@ This repo is more a draft of notes at this time, so don't expect too much. Also:
 Hardware:
 - Lilygo TTGO v1.1 board, esp32, 240x135 pixel display
 - adafruit clickwheel (plus breakout board!)
-- 900mAh LiPo battery
+- 900mAh LiPo battery (the charging circuit on the TTGO is hardwired to 500mA as the charging current, using a battery below 800mAh capacity supposedly kills the battery fast, see https://www.youtube.com/watch?v=JIh8Z7XtVGw for details)
 - off-the-shelf housing with cutouts where needed
 - magnetic pogo pins to dock the remote to a charging dock
 - reed relais to detect the docking status
