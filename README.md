@@ -11,6 +11,7 @@ Hardware:
 - magnetic pogo pins to dock the remote to a charging dock
 - reed relais to detect the docking status
 - hand-soldered pcb with a lot of signs of my struggle to get lead-free solder to fully work for me
+- USB C plug breakout board (as the only way to run the TTGO via external power and charge the battery at the same time is via the USB plug)
 
 The overall inspiration to combine the TTGO with the clickwheel comes from https://github.com/landonr/homeThing (check it out, awesome project!)
 
