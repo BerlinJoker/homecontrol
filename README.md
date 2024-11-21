@@ -19,6 +19,8 @@ Hardware:
 
 <img src="photos/20241119_142357_resized.jpg" width="600" title="photo of the individual parts of the remote" alt="photo of the individual parts of the remote"/>
 
+[![youtube assembly video](https://img.youtube.com/vi/EuNBZh2iulQ/0.jpg)](https://www.youtube.com/watch?v=EuNBZh2iulQ)
+<br>(click for assembly video on youtube)
 
 The overall inspiration to combine the TTGO with the clickwheel comes from https://github.com/landonr/homeThing (check it out, awesome project!)
 
