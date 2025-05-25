@@ -14,6 +14,7 @@ Hardware:
 - off-the-shelf housing with cutouts where needed
 - magnetic pogo pins to dock the remote to a charging dock
 - reed relais to detect the docking status
+- tilt sensor to detect if the remote is laying flat or standing up (not pictured in the overview photo, was added later)
 - hand-soldered pcb with a lot of signs of my struggle to get lead-free solder to fully work for me
 - USB C plug breakout board (as the only way to run the TTGO via external power and charge the battery at the same time is via the USB plug)
 
