@@ -1,0 +1,2394 @@
+esphome:
+  name: ttgo
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  password: ""
+
+ota:
+  - platform: esphome
+    password: ""
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  fast_connect: true #shortens the wifi connection time and therefore the time until the device is usable
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Ttgo Fallback Hotspot"
+    password: !secret ap_password
+
+captive_portal:
+
+
+globals:
+   - id: current_page # not used (anymore)
+     type: std::string
+     restore_value: no
+     initial_value: '"indoor_infos"'
+   - id: tv_play_mode # not used
+     type: std::string
+     restore_value: no
+     initial_value: '"paused"'
+   - id: updownsingle
+     type: bool
+     restore_value: no
+     initial_value: 'false'
+   - id: lighttochange
+     type: std::string
+     restore_value: no
+     initial_value: '"none"'
+    
+output: #background light of the display
+  - platform: ledc
+    pin: 4
+    id: gpio_04_backlight_pwm
+
+light: #makes the backlight of the display a straightforward controllable light within esphome and HA
+  - platform: monochromatic
+    output: gpio_04_backlight_pwm
+    name: "Display Backlight"
+    id: back_light
+    restore_mode: ALWAYS_ON
+    on_turn_on:
+      then:
+        - light.control:
+            id: back_light
+            brightness: 70% 
+    
+    
+font:
+  - file: "materialdesignicons-webfont.ttf"
+    id: icons_30
+    size: 30
+    bpp: 4 #smoothes the font on the display, the difference to not using this option is huge
+    glyphs: [
+      "\U000F050F", #thermometer
+      "\U000F0F54", #home thermometer
+      "\U000F02DC", #home
+      "\U000F0531", #tree
+      "\U000F07E4", #co2
+      "\U000F11DB", #window closed
+      "\U000F11DC", #window open
+      "\U000F0084", #battery charging
+      "\U000F075B", #music off
+      "\U000F075A", #music on
+      "\U000F058E", #humidity
+      "\U000F140B", #lightningbolt
+      "\U000F024A", #flower
+      "\U000F09A0", #shower
+      "\U000F09A1", #showerhead
+      "\U000F058F", #waterpump
+      "\U000F052C", #train
+      "\U000F1442", #clock
+      "\U000F0E4F", #light off
+      "\U000F06E8", #light on
+      "\U000F02E3", #bed
+      "\U000F125F", #bookshelf
+      "\U000F04B9", #sofa
+      "\U000F1B94", #bed clock
+      "\U000F1481", #watering can
+      "\U000F0335", #lightbulb
+      "\U000F0493", #cog
+      "\U000F1616", #connection
+      "\U000F07C0", #desktop classic
+      "\U000F042A", #printer
+      "\U000F0AAB", #desktop tower
+      "\U000F07F4", #tv classic
+      "\U000F0425", #power
+      "\U000F075D", #volume plus
+      "\U000F075E", #volume minus
+      "\U000F040A", #play
+      "\U000F03E4", #pause
+      "\U000F075F", #mute
+      "\U000F1251", #home-lightbulb
+      "\U000F081A", #door
+      "\U000F1903"  #home lightningbolt
+      ]
+  - file: "materialdesignicons-webfont.ttf"
+    id: icons_60
+    size: 60
+    bpp: 4
+    glyphs: [
+      "\U000F050F", #thermometer
+      "\U000F0F54", #home thermometer
+      "\U000F02DC", #home
+      "\U000F0531", #tree
+      "\U000F07E4", #co2
+      "\U000F11DB", #window closed
+      "\U000F11DC", #window open
+      "\U000F0084", #battery charging
+      "\U000F075B", #music off
+      "\U000F075A", #music on
+      "\U000F058E", #humidity
+      "\U000F140B", #lightningbolt
+      "\U000F024A", #flower
+      "\U000F09A0", #shower
+      "\U000F09A1", #showerhead
+      "\U000F058F", #waterpump
+      "\U000F052C", #train
+      "\U000F1442", #clock
+      "\U000F0E4F", #light off
+      "\U000F06E8", #light on
+      "\U000F02E3", #bed
+      "\U000F125F", #bookshelf
+      "\U000F04B9", #sofa
+      "\U000F1B94", #bed clock
+      "\U000F1481", #watering can
+      "\U000F0335", #lightbulb
+      "\U000F0493", #cog
+      "\U000F1616", #connection
+      "\U000F1251", #home-lightbulb
+      "\U000F1903"  #home lightningbolt
+      ]
+    
+    
+# Define colors, not used at the moment
+color:
+  - id: color_text
+    red: 100%
+    green: 0%
+    blue: 0%
+    white: 0%
+    
+    
+time:
+  - platform: homeassistant #imports the time from the home assistant instance
+    id: homeassistant_time
+    on_time:
+      - seconds: 0 #kicks in once every minute to update the clock on the main info screen
+        then:
+          - lvgl.label.update:
+              id: clock_big
+              text:
+                time_format: "%R"
+        
+    
+sensor:
+  - platform: homeassistant
+    id: outside_temperature
+    entity_id: sensor.lumi_lumi_weather_a5f3bb07_temperature #one of my first HA sensors, horrible name, I know
+    internal: true
+    on_value:
+      - lvgl.label.update:
+          id: outside_temp
+          text:
+            format: "%.1f°C"
+            args: [ 'x' ]
+      - lvgl.label.update:
+          id: outside_temp_big
+          text:
+            format: "%.0f°"
+            args: [ 'x' ]
+
+            
+            
+  - platform: homeassistant
+    id: outside_humidity
+    entity_id: sensor.lumi_lumi_weather_a5f3bb07_humidity
+    internal: true
+    on_value:
+      - lvgl.label.update:
+          id: outside_hum
+          text:
+            format: "%.0f%%" #number with zero digits behind the comma/dot, double percent sign so that it gets actually displayed as one in the label
+            args: [ 'x' ]
+      - lvgl.bar.update:
+          id: hum_bar_outside
+          value: !lambda 'return (int) id(outside_humidity).state;'
+
+            
+            
+  - platform: homeassistant
+    id: bathroom_humidity
+    entity_id: sensor.lumi_lumi_weather_humidity
+    internal: true
+    on_value:
+      - lvgl.label.update:
+          id: bathroom_hum
+          text:
+            format: "%.0f%%"
+            args: [ 'x' ]
+            
+            
+  - platform: homeassistant
+    id: bathroom_temperature
+    entity_id: sensor.lumi_lumi_weather_temperature
+    on_value:
+      - lvgl.label.update:
+          id: bathroom_temp
+          text:
+            format: "%.0f°C"
+            args: [ 'x' ]
+            
+            
+
+    
+  - platform: homeassistant
+    id: hallway_co2
+    entity_id: sensor.hallway_co2
+    internal: true
+    on_value:
+      - lvgl.indicator.update:
+          id: val_needle2
+          value: !lambda return x;
+      - lvgl.label.update:
+          id: val_text2
+          text:
+            format: "%.0f"
+            args: [ 'x' ]
+      #- if:
+      #    condition:
+      #      sensor.in_range:
+      #        id: hallway_co2
+      #        below: 701
+      #    then:
+      #      - lvgl.bar.update:
+      #          id: co2_bar
+      #          value: !lambda 'return (int) id(hallway_co2).state;'
+      - if:
+          condition:
+            sensor.in_range: # up to 700: green
+              id: hallway_co2
+              below: 701
+          then:
+            - lvgl.bar.update:
+                id: co2_bar
+                value: !lambda 'return (int) id(hallway_co2).state;'   
+                indicator:
+                  bg_color: 0x00FF00
+      - if:
+          condition:
+            sensor.in_range: # above 900: red
+              id: hallway_co2
+              above: 900
+          then:
+            - lvgl.bar.update:
+                id: co2_bar
+                value: !lambda 'return (int) id(hallway_co2).state;'
+                indicator:
+                  bg_color: 0xFF0000
+      - if:
+          condition:
+            sensor.in_range: # 700 to 900: yellow
+              id: hallway_co2
+              above: 699
+              below: 901
+          then:
+            - lvgl.bar.update:
+                id: co2_bar
+                value: !lambda 'return (int) id(hallway_co2).state;'
+                indicator:
+                  bg_color: 0xFFFF00
+          
+      #- lvgl.indicator.update:
+      #    id: val_needle2dark
+      #    value: !lambda return x;
+      #- lvgl.label.update:
+      #    id: val_text2dark
+      #    text:
+      #      format: "%.0f"
+      #      args: [ 'x' ]
+      #- lvgl.label.update:
+      #    id: co2
+      #    text:
+      #      format: "%.0f"
+      #      args: [ 'x' ]
+    
+  - platform: homeassistant
+    id: hallway_temperature
+    entity_id: sensor.hallway_temperature
+    internal: true
+    on_value:
+      - lvgl.label.update:
+          id: inside_temp
+          text:
+            format: "%.1f°C"
+            args: [ 'x' ]
+      - lvgl.label.update:
+          id: inside_temp_big
+          text:
+            format: "%.0f°"
+            args: [ 'x' ]
+
+
+  - platform: homeassistant
+    id: hallway_humidity
+    entity_id: sensor.hallway_humidity
+    internal: true
+    on_value:
+      - lvgl.label.update:
+          id: inside_hum
+          text:
+            format: "%.0f%%"
+            args: [ 'x' ]
+      - lvgl.bar.update:
+           id: hum_bar_inside
+           value: !lambda 'return (int) id(hallway_humidity).state;'
+
+    
+  - platform: homeassistant
+    id: current_watt
+    entity_id: sensor.current_watt
+    internal: true
+    on_value:
+      - lvgl.label.update:
+          id: wattage
+          text:
+            format: "%.0fW"
+            args: [ 'x' ]
+      - lvgl.label.update:
+          id: current_watt_big
+          text:
+            format: "%.0fW"
+            args: [ 'x' ]
+
+    
+  - platform: homeassistant
+    id: bookshelf_brightness_value
+    entity_id: light.bookshelf_e27_light
+    attribute: brightness
+    on_value:
+      - lvgl.bar.update:
+          id: bookshelf_brightness
+          value: !lambda return x;  
+          
+  - platform: homeassistant
+    id: sofa_brightness_value
+    entity_id: light.rgb_bulb_e27_level_light_color_on_off
+    attribute: brightness
+    on_value:
+      - lvgl.bar.update:
+          id: sofa_brightness
+          value: !lambda return x;  
+          
+  - platform: homeassistant
+    id: plants_brightness_value
+    entity_id: light.hallway_plantlight_light
+    attribute: brightness
+    on_value:
+      - lvgl.bar.update:
+          id: plants_brightness
+          value: !lambda return x;  
+          
+  - platform: homeassistant
+    id: hallway_brightness_value
+    entity_id: light.ikea_of_sweden_stoftmoln_ceiling_wall_lamp_ww24_light
+    attribute: brightness
+    on_value:
+      - lvgl.bar.update:
+          id: hallway_brightness
+          value: !lambda return x;  
+            
+  - platform: rotary_encoder
+    name: "Rotary Encoder"
+    id: rotary
+    restore_mode: ALWAYS_ZERO
+    filters:
+    - throttle: 0.01s
+    pin_a:
+      number: GPIO13
+      mode:
+        input: true
+        pullup: true
+    pin_b:
+      number: GPIO12
+      mode:
+        input: true
+        pullup: true
+        
+
+    
+    
+  - platform: adc
+    pin: GPIO34
+    name: "Battery voltage"
+    accuracy_decimals: 2
+    unit_of_measurement: "V"
+    update_interval: 30s
+    filters:
+      - multiply: 2
+    attenuation: auto
+    icon: mdi:battery
+    id: batlevel
+    device_class: battery
+    entity_category: diagnostic
+    on_value:
+      - lvgl.label.update:
+          id: battery_volts_big
+          text:
+            format: "%.2fV"
+            args: [ 'x' ]
+      - lvgl.label.update:
+          id: battery_voltage_settings
+          text:
+            format: "%.2fV"
+            args: [ 'x' ]
+    
+            
+            
+text_sensor:
+  - platform: homeassistant
+    id: next_subway
+    entity_id: sensor.next_subway_rehberge
+    internal: true
+    on_value:
+      - lvgl.label.update:
+          id: lbl_next_subway
+          text:
+            format: "%s"
+            args: [ 'x.c_str()' ]
+            
+  - platform: homeassistant
+    id: second_subway
+    entity_id: sensor.second_subway_rehberge
+    internal: true
+    on_value:
+      - lvgl.label.update:
+          id: lbl_second_subway
+          text:
+            format: "%s"
+            args: [ 'x.c_str()' ]
+            
+  - platform: homeassistant
+    id: remote_mode
+    entity_id: input_select.remote_mode
+    internal: true
+    on_value:
+      - if:
+          condition:
+            text_sensor.state:
+              id: remote_mode
+              state: 'tv'
+          then:
+            #- lvgl.page.show:
+            #    id: tv_control
+            - lvgl.widget.update:
+                id: btn_tv_mode
+                bg_color: 0x02e002
+                focus_key:
+                  bg_color: 0x02e002
+            - lvgl.widget.update:
+                id: btn_music_mode
+                bg_color: 0x000000
+                focus_key:
+                  bg_color: 0x000000
+            - lvgl.widget.update:
+                id: btn_default_mode
+                bg_color: 0x000000
+                focus_key:
+                  bg_color: 0x000000
+
+      - if:
+          condition:
+            text_sensor.state:
+              id: remote_mode
+              state: 'music'
+          then:
+            - lvgl.widget.update:
+                id: btn_music_mode
+                bg_color: 0x02e002
+                focus_key:
+                  bg_color: 0x02e002
+            - lvgl.widget.update:
+                id: btn_default_mode
+                bg_color: 0x000000
+                focus_key:
+                  bg_color: 0x000000
+            - lvgl.widget.update:
+                id: btn_tv_mode
+                bg_color: 0x000000
+                focus_key:
+                  bg_color: 0x000000
+                  
+      - if:
+          condition:
+            text_sensor.state:
+              id: remote_mode
+              state: 'default'
+          then:
+            - lvgl.widget.update:
+                id: btn_default_mode
+                bg_color: 0x02e002
+                focus_key:
+                  bg_color: 0x02e002
+            - lvgl.widget.update:
+                id: btn_tv_mode
+                bg_color: 0x000000
+                focus_key:
+                  bg_color: 0x000000
+            - lvgl.widget.update:
+                id: btn_music_mode
+                bg_color: 0x000000
+                focus_key:
+                  bg_color: 0x000000
+          
+      
+
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO35
+      inverted: true
+    id: tdisplay_button_input_1
+    on_press:
+      then:
+        - light.control:
+            id: back_light
+            brightness: 70%
+        - lambda: |- 
+            lv_disp_trig_activity(NULL);
+        - if:
+            condition:
+              text_sensor.state:
+                id: remote_mode
+                state: 'tv'
+            then:
+              - homeassistant.action:
+                  action: button.press
+                  data:
+                    entity_id: button.sonytvplay8266
+            
+            
+  - platform: gpio
+    pin:
+      number: GPIO0
+      inverted: true
+    id: tdisplay_button_input_0
+    on_press:
+      then:
+        - light.control:
+            id: back_light
+            brightness: 70%
+        - lambda: |- 
+            lv_disp_trig_activity(NULL);
+        - if:
+            condition:
+              text_sensor.state:
+                id: remote_mode
+                state: 'tv'
+            then:
+              - homeassistant.action:
+                  action: button.press
+                  data:
+                    entity_id: button.sonytvpause8266
+
+            
+            
+  - platform: gpio
+    pin:
+      number: GPIO15
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+    id: rotary_button
+
+    
+    
+  - platform: gpio
+    pin:
+      number: GPIO21
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+    id: right_button
+    on_press:
+      then:
+        - lvgl.page.next:
+        - lambda: |- 
+            lv_disp_trig_activity(NULL);
+    
+    
+  - platform: gpio
+    pin:
+      number: GPIO22
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+    id: down_button
+    on_press:
+      then:
+        - lambda: |- 
+            lv_disp_trig_activity(NULL);
+        - if:
+            condition:
+              lambda: |-
+                if (id(updownsingle))
+                { return true; }
+                else
+                {return false; }
+            then:
+              - if:
+                  condition:
+                    lambda: |-
+                      if (id(lighttochange) == "bookshelf")
+                      { return true; }
+                      else
+                      {return false; }
+                  then:
+                    - homeassistant.action:
+                        action: light.turn_on
+                        data:
+                          #entity_id: "!lambda 'return id(lighttochange).c_str()'"
+                          #entity_id: "!lambda 'return (str) id(lighttochange).state'"
+                          entity_id: light.bookshelf_e27_light
+                          brightness_step_pct: "-10"
+              - if:
+                  condition:
+                    lambda: |-
+                      if (id(lighttochange) == "sofa")
+                      { return true; }
+                      else
+                      {return false; }
+                  then:
+                    - homeassistant.action:
+                        action: light.turn_on
+                        data:
+                          entity_id: light.rgb_bulb_e27_level_light_color_on_off
+                          brightness_step_pct: "-10"
+              - if:
+                  condition:
+                    lambda: |-
+                      if (id(lighttochange) == "plants")
+                      { return true; }
+                      else
+                      {return false; }
+                  then:
+                    - homeassistant.action:
+                        action: light.turn_on
+                        data:
+                          entity_id: light.hallway_plantlight_light
+                          brightness_step_pct: "-10"
+              - if:
+                  condition:
+                    lambda: |-
+                      if (id(lighttochange) == "hallway")
+                      { return true; }
+                      else
+                      {return false; }
+                  then:
+                    - homeassistant.action:
+                        action: light.turn_on
+                        data:
+                          entity_id: light.ikea_of_sweden_stoftmoln_ceiling_wall_lamp_ww24_light
+                          brightness_step_pct: "-10"
+            else:       
+              - if:
+                  condition:
+                    text_sensor.state:
+                      id: remote_mode
+                      state: 'tv'
+                  then:
+                    - homeassistant.action:
+                        action: button.press
+                        data:
+                          entity_id: button.sonytvvolumedown8266
+              - if:
+                  condition:
+                    text_sensor.state:
+                      id: remote_mode
+                      state: 'music'
+                  then:
+                    - homeassistant.action:
+                        action: input_number.decrement
+                        data:
+                          entity_id: input_number.musicvolumephoneflorian
+              - if:
+                  condition:
+                    text_sensor.state:
+                      id: remote_mode
+                      state: 'default'
+                  then:
+                    - homeassistant.action:
+                        action: script.livingroom_darker
+        
+
+
+          
+    
+    
+  - platform: gpio
+    pin:
+      number: GPIO17
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+    id: left_button
+    on_press:
+      then:
+        - lvgl.page.previous:
+        - lambda: |- 
+            lv_disp_trig_activity(NULL);
+    
+    
+  - platform: gpio
+    pin:
+      number: GPIO2
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+    id: up_button
+    on_press:
+      then:
+        - lambda: |- 
+            lv_disp_trig_activity(NULL);
+        - if:
+            condition:
+              lambda: |-
+                if (id(updownsingle))
+                { return true; }
+                else
+                {return false; }
+            then:
+              - if:
+                  condition:
+                    lambda: |-
+                      if (id(lighttochange) == "bookshelf")
+                      { return true; }
+                      else
+                      {return false; }
+                  then:
+                    - homeassistant.action:
+                        action: light.turn_on
+                        data:
+                          entity_id: light.bookshelf_e27_light
+                          brightness_step_pct: "10"
+              - if:
+                  condition:
+                    lambda: |-
+                      if (id(lighttochange) == "sofa")
+                      { return true; }
+                      else
+                      {return false; }
+                  then:
+                    - homeassistant.action:
+                        action: light.turn_on
+                        data:
+                          entity_id: light.rgb_bulb_e27_level_light_color_on_off
+                          brightness_step_pct: "10"
+              - if:
+                  condition:
+                    lambda: |-
+                      if (id(lighttochange) == "plants")
+                      { return true; }
+                      else
+                      {return false; }
+                  then:
+                    - homeassistant.action:
+                        action: light.turn_on
+                        data:
+                          entity_id: light.hallway_plantlight_light
+                          brightness_step_pct: "10"
+              - if:
+                  condition:
+                    lambda: |-
+                      if (id(lighttochange) == "hallway")
+                      { return true; }
+                      else
+                      {return false; }
+                  then:
+                    - homeassistant.action:
+                        action: light.turn_on
+                        data:
+                          entity_id: light.ikea_of_sweden_stoftmoln_ceiling_wall_lamp_ww24_light
+                          brightness_step_pct: "10"
+            else:
+              - if:
+                  condition:
+                    text_sensor.state:
+                      id: remote_mode
+                      state: 'tv'
+                  then:
+                    - homeassistant.action:
+                        action: button.press
+                        data:
+                          entity_id: button.sonytvvolumeup8266
+              - if:
+                  condition:
+                    text_sensor.state:
+                      id: remote_mode
+                      state: 'music'
+                  then:
+                    - homeassistant.action:
+                        action: input_number.increment
+                        data:
+                          entity_id: input_number.musicvolumephoneflorian
+              - if:
+                  condition:
+                    text_sensor.state:
+                      id: remote_mode
+                      state: 'default'
+                  then:
+                    - homeassistant.action:
+                        action: script.livingroom_brighter
+
+        
+  - platform: gpio
+    pin:
+      number: GPIO27
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+    id: dock_status
+    name: "dock status"
+    publish_initial_state: true
+    on_press:
+      then:
+        - lvgl.page.show:
+            id: infos_big
+    on_release:
+      then:
+        - lvgl.page.show:
+            id: control_page
+    on_state:
+      if:
+        condition:
+          binary_sensor.is_on: dock_status
+        then:
+          - lvgl.label.update:
+             id: docking_status
+             text: docked
+        else:
+          - lvgl.label.update:
+             id: docking_status
+             text: notdocked
+             
+  - platform: gpio
+    pin:
+      number: GPIO25
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+    id: orientationswitch
+    name: "orientation switch"
+    publish_initial_state: true
+    internal: true
+    filters:
+      - delayed_on: 50ms
+      - delayed_off: 50ms
+    on_press:
+      if:
+        condition:
+          lvgl.is_idle:
+            timeout: 32s
+        then: 
+          - light.control:
+              id: back_light
+              brightness: 70%
+          - lambda: |- 
+              lv_disp_trig_activity(NULL);
+    on_release:
+      then:
+        - lambda: |- 
+            lv_disp_trig_activity(NULL);
+        
+            
+        
+  - platform: homeassistant
+    id: bathroom_window
+    entity_id: binary_sensor.lumi_lumi_sensor_magnet_aq2_4420d107_on_off
+    internal: true
+    publish_initial_state: true
+    on_state:
+      if:
+        condition:
+          binary_sensor.is_on: bathroom_window #open
+        then:
+          - lvgl.label.update:
+             id: bathroom_window_icon
+             text: "\U000F11DC"
+          - lvgl.widget.show:
+              id: window_open
+        else: #closed
+          - lvgl.label.update:
+             id: bathroom_window_icon
+             text: "\U000F11DB"
+          - lvgl.widget.hide:
+              id: window_open
+
+
+
+
+# Pins for Board
+spi:
+  clk_pin: GPIO18
+  mosi_pin: GPIO19
+
+display:
+  - platform: ili9xxx
+    model: st7789v
+    id: my_display
+    dc_pin: GPIO16
+    cs_pin: GPIO05
+    reset_pin: GPIO23
+    #TTGO TDisplay 135x240
+    dimensions:
+      height: 240
+      width: 135
+      offset_height: 40
+      offset_width: 52
+    # Required or the colors are all inverted, and Black screen is White
+    invert_colors: true
+    auto_clear_enabled: false
+    update_interval: never
+
+      
+      
+lvgl:
+  buffer_size: 25%
+  displays:
+    - my_display
+  encoders:
+    sensor: rotary
+    enter_button: rotary_button
+  #keypads:
+  #  home: right_button
+  #  end: left_button
+  style_definitions:
+    - id: standardbutton
+      width: 130
+      height: 40
+      bg_color: 0x3b3b3b
+      pad_left: 2
+      radius: 0
+      focus_key:
+        outline_color: white
+        outline_width: 1
+        outline_opa: cover
+    - id: smallbutton
+      width: 60
+      height: 40
+      bg_color: 0x3b3b3b
+      pad_left: 2
+      radius: 0
+  #theme:
+  #  button:
+  #    focused:
+  #      bg_color: 0xFF0000
+  on_idle:
+    - timeout: 30s
+      then:
+        - if:
+            condition:
+              binary_sensor.is_off: orientationswitch
+            then:
+              - light.control:
+                  id: back_light
+                  brightness: 20%
+        
+        
+        
+  pages:    
+
+
+
+            
+    - id: infos_big
+      on_load:
+          then:
+            - globals.set:
+                id: current_page
+                value: '"infos_big"'
+            - lvgl.widget.show:
+                id: mode_buttons
+            - lvgl.widget.focus:
+                id: btn_tv_mode
+      on_unload:
+        then:
+          - lvgl.widget.hide:
+             id: mode_buttons
+      scrollbar_mode: "OFF"
+      bg_color: 0x000000
+      widgets:
+        #- label:
+        #    text: "\U000F0531" #outside
+        #    text_font: icons_30
+        #    text_color: 0xFFFFFF
+        #    x: 105
+        #    y: 80
+
+        - label:
+            id: outside_temp_big
+            text: "--°"
+            text_font: montserrat_32
+            text_color: 0xFFFFFF
+            align: TOP_RIGHT
+        #- label: 
+        #    text: "750"
+        #    text_font: montserrat_36
+        #    text_color: 0xFF0000
+        #    x: 2
+        #    y: 70
+        - bar:
+            id: co2_bar
+            width: 15
+            height: 76
+            x: 0
+            y: 33
+            indicator:
+              radius: 0
+              bg_color: 0x00FF00
+            radius: 0
+            min_value: 390
+            max_value: 1000
+            value: 400
+            bg_color: 0x000000
+            bg_opa: COVER
+            border_width: 0
+            border_color: 0xFFFFFF
+        - bar:
+            id: hum_bar_outside
+            width: 15
+            height: 69
+            x: 120
+            y: 41
+            indicator:
+              radius: 0
+              bg_color: 0x0000FF
+            radius: 0
+            min_value: 1
+            max_value: 100
+            value: 5
+            bg_color: 0x000000
+            bg_opa: COVER
+            border_width: 0
+            border_color: 0xFFFFFF
+        - bar:
+              id: hum_bar_inside
+              width: 15
+              height: 69
+              x: 66
+              y: 41
+              indicator:
+                radius: 0
+                bg_color: 0x0000FF
+              radius: 0
+              min_value: 1
+              max_value: 100
+              value: 5
+              bg_color: 0x000000
+              bg_opa: COVER
+              border_width: 0
+              border_color: 0xFFFFFF
+        - label:
+            id: inside_temp_big
+            text: "--°"
+            text_font: montserrat_48
+            text_color: 0xFFFFFF
+            x: 2
+            y: 40
+        - line:
+            points:
+              - 0,110
+              - 135,110
+            line_color: 0xFFFFFF
+            line_width: 2
+        - line:
+            points:
+              - 0,170
+              - 135,170
+            line_color: 0xFFFFFF
+            line_width: 2
+        - line:
+            points:
+              - 0,41
+              - 41,0
+              - 82,41
+              - 82, 110
+            line_color: 0xFFFFFF
+            line_width: 4
+        - line:
+            id: window_open
+            points:
+              - 82,50
+              - 105,50
+              - 105,80
+              - 82,80
+            line_color: 0xFFFFFF
+            line_width: 4
+        - obj:
+            id: mode_buttons
+            x: 5
+            y: 123
+            pad_all: 0
+            width: 126
+            height: 38
+            radius: 0
+            bg_color: 0x00000
+            border_color: 0x000000
+            scrollbar_mode: "OFF"
+            widgets:
+              - button:
+                  id: btn_default_mode
+                  x: 89
+                  y: 2
+                  width: 30
+                  height: 30
+                  radius: 0
+                  pad_all: 0
+                  bg_color: 0x000000
+                  border_color: 0xFFFFFF
+                  focus_key:
+                    bg_color: 0x111111
+                    #bg_color: green
+                    outline_color: white
+                    outline_width: 2
+                    outline_opa: cover
+                  widgets:
+                    - label:
+                        text: "\U000F1251" #home-lightbulb
+                        text_font: icons_30
+                        text_color: 0xFFFFFF
+                        #x: 10
+                        #y: 125
+                  on_click:
+                    - homeassistant.action:
+                        action: input_select.select_option
+                        data:
+                          entity_id: input_select.remote_mode
+                          option: "default"
+              - button:
+                  id: btn_music_mode
+                  x: 45
+                  y: 2
+                  width: 30
+                  height: 30
+                  radius: 0
+                  pad_all: 0
+                  bg_color: 0x000000
+                  border_color: 0xFFFFFF
+                  focus_key:
+                    bg_color: 0x111111
+                    #bg_color: green
+                    outline_color: white
+                    outline_width: 2
+                    outline_opa: cover
+                  widgets:
+                    - label:
+                        text: "\U000F075A" #music
+                        text_font: icons_30
+                        text_color: 0xFFFFFF
+                        #x: 10
+                        #y: 125
+                  on_click:
+                    if:
+                      condition:
+                        text_sensor.state:
+                          id: remote_mode
+                          state: 'music'
+                      then:
+                        - homeassistant.action:
+                            action: input_select.select_option
+                            data:
+                               entity_id: input_select.remote_mode
+                               option: "default"
+                        - homeassistant.action:
+                           action: switch.turn_off
+                           data:
+                             entity_id: switch.musicbox
+                      else:
+                         - homeassistant.action:
+                            action: input_select.select_option
+                            data:
+                               entity_id: input_select.remote_mode
+                               option: "music"
+                         - homeassistant.action:
+                            action: switch.turn_on
+                            data:
+                              entity_id: switch.musicbox
+                  
+                  
+                  
+                  
+                 
+              - button:
+                  id: btn_tv_mode
+                  x: 2
+                  y: 2
+                  width: 30
+                  height: 30
+                  radius: 0
+                  pad_all: 0
+                  bg_color: 0x000000
+                  #border_width: 3
+                  border_color: 0xFFFFFF
+                  #border_opa: cover
+                  #outline_color: red
+                  #outline_width: 5
+                  #outline_opa: cover
+                  focus_key:
+                    bg_color: 0x111111
+                    #border_color: 0x00FFFF
+                    #border_width: 3
+                    #border_opa: cover
+                    outline_color: white
+                    outline_width: 2
+                    outline_opa: cover
+                  widgets:
+                    - label:
+                        text: "\U000F07F4" #tv
+                        text_font: icons_30
+                        text_color: 0xFFFFFF
+                        #x: 10
+                        #y: 125
+                  on_click:
+                    if:
+                      condition:
+                        text_sensor.state:
+                          id: remote_mode
+                          state: 'tv'
+                      then:
+                        - homeassistant.action:
+                            action: input_select.select_option
+                            data:
+                               entity_id: input_select.remote_mode
+                               option: "default"
+                        - homeassistant.action:
+                           action: button.press
+                           data:
+                             entity_id: button.sonytvoff8266
+                      else:
+                         - homeassistant.action:
+                            action: input_select.select_option
+                            data:
+                               entity_id: input_select.remote_mode
+                               option: "tv"
+                         - homeassistant.action:
+                            action: button.press
+                            data:
+                              entity_id: button.sonytvon8266
+
+
+
+        - label:
+            id: clock_big
+            text: "--:--"
+            text_font: montserrat_36
+            text_color: 0xFFFFFF
+            x: 20
+            y: 180
+        - label:
+            id: current_watt_big
+            text: "----W"
+            text_font: montserrat_14
+            text_color: 0xFFFFFF
+            align: BOTTOM_LEFT
+        - label:
+            id: battery_volts_big
+            text: "-,--V"
+            text_font: montserrat_14
+            text_color: 0xFFFFFF
+            align: BOTTOM_RIGHT
+            
+
+
+
+
+  
+    - id: indoor_infos
+      on_load:
+          then:
+            - globals.set:
+                id: current_page
+                value: '"indoor_infos"'
+      scrollbar_mode: "OFF"
+      bg_color: 0x000000
+      widgets:
+        - label:
+            text: "\U000F050F" #thermometer
+            text_font: icons_30
+            text_color: 0xFFFFFF
+            x: 2
+            y: 50
+        - label:
+            text: "\U000F058E" #humidity
+            text_font: icons_30
+            text_color: 0xFFFFFF
+            x: 2
+            y: 80
+        - label:
+            text: "\U000F140B" #lightning
+            text_font: icons_30
+            text_color: 0xFFFFFF
+            x: 2
+            y: 110
+        - label:
+            text: "\U000F02DC" #home
+            text_font: icons_30
+            text_color: 0xFFFFFF
+            x: 105
+            y: 2
+        - label:
+            id: inside_temp
+            text: "0"
+            text_font: montserrat_30
+            text_color: 0xFFFFFF
+            x: 30
+            y: 50
+        - label:
+            id: inside_hum
+            text: "0"
+            text_font: montserrat_28
+            text_color: 0xFFFFFF
+            x: 30
+            y: 80
+        - label:
+            id: wattage
+            text: "0"
+            text_font: montserrat_26
+            text_color: 0xFFFFFF
+            x: 30
+            y: 110
+            
+        - obj:
+              height: 120
+              width: 120
+              x: 2
+              y: 150
+              bg_color: 0x000000
+              border_width: 0
+              pad_all: 4
+              widgets:
+                - meter:
+                    height: 100%
+                    width: 100%
+                    border_width: 0
+                    bg_opa: TRANSP
+                    align: CENTER
+                    scales:
+                      - range_from: 400
+                        range_to: 1000
+                        angle_range: 180 # sets the total angle to 180 = starts mid left and ends mid right
+                        ticks:
+                          count: 0
+                        indicators:
+                          - line:
+                              id: val_needle2
+                              color: 0x000000
+                              width: 8
+                              r_mod: 12 # sets line length by this much difference from the scale default radius
+                              value: -2
+                          - arc: # first half of the scale background
+                              color: 0x00FF00
+                              r_mod: 10 # radius difference from the scale default radius
+                              width: 31
+                              start_value: 400
+                              end_value: 700
+                          - arc: # first half of the scale background
+                              color: 0xFFFF00
+                              r_mod: 10 # radius difference from the scale default radius
+                              width: 31
+                              start_value: 700
+                              end_value: 900
+                          - arc: # second half of the scale background
+                              color: 0xFF3000
+                              r_mod: 10
+                              width: 31
+                              start_value: 900
+                              end_value: 1000
+                - obj: # to cover the middle part of meter indicator line
+                    height: 73
+                    width: 73
+                    radius: 36
+                    align: CENTER
+                    border_width: 0
+                    bg_color: 0x000000
+                    pad_all: 0
+                - label: # gauge numeric indicator
+                    id: val_text2
+                    text_font: montserrat_18
+                    text_color: 0xFFFFFF
+                    align: CENTER
+                    y: -10
+                    text: "0"
+            
+
+
+
+                    
+                    
+
+
+        
+    - id: outdoor_infos
+      on_load:
+          then:
+            - globals.set:
+                id: current_page
+                value: '"outdoor_infos"'
+            - lvgl.widget.show:
+                id: btn_pump
+            - lvgl.widget.focus:
+                id: btn_pump
+      on_unload:
+          then:
+            - lvgl.widget.hide:
+                id: btn_pump
+      scrollbar_mode: "OFF"
+      bg_color: 0x000000 
+      widgets:
+        - label:
+            text: "\U000F050F" #thermometer
+            text_font: icons_30
+            text_color: 0xFFFFFF
+            x: 2
+            y: 50
+        - label:
+            text: "\U000F058E" #humidity
+            text_font: icons_30
+            text_color: 0xFFFFFF
+            x: 2
+            y: 80
+        - label:
+            text: "\U000F024A" #flower
+            text_font: icons_30
+            text_color: 0xFFFFFF
+            x: 2
+            y: 110
+        - label:
+            text: "\U000F0531" #tree
+            text_font: icons_30
+            text_color: 0xFFFFFF
+            x: 105
+            y: 2
+        - label:
+            id: outside_temp
+            text: "0"
+            text_font: montserrat_30
+            text_color: 0xFFFFFF
+            x: 30
+            y: 50
+        - label:
+            id: outside_hum
+            text: "0"
+            text_font: montserrat_30
+            text_color: 0xFFFFFF
+            x: 30
+            y: 80
+        - label:
+            text: "-"
+            text_font: montserrat_30
+            text_color: 0xFFFFFF
+            x: 30
+            y: 110
+        - button:
+            x: 2
+            y: 150
+            styles: standardbutton
+            bg_color: 0x000000
+            border_color: 0x3b3b3b
+            border_width: 1
+            border_opa: cover
+            focus_key:
+              outline_color: white
+              outline_width: 1
+              outline_opa: cover
+            id: btn_pump
+            checkable: false
+            widgets:
+              - label:
+                  align: CENTER
+                  text_font: icons_30
+                  text_color: 0xFFFFFF
+                  text: "\U000F1481"
+ 
+ 
+ 
+                  
+    - id: bathroom_infos
+      on_load:
+          then:
+            - globals.set:
+                id: current_page
+                value: '"bathroom_infos"'
+      scrollbar_mode: "OFF"
+      bg_color: 0x000000 
+      widgets:
+        - label:
+            text: "\U000F050F" #thermometer
+            text_font: icons_30
+            text_color: 0xFFFFFF
+            x: 2
+            y: 50
+        - label:
+            text: "\U000F058E" #humidity
+            text_font: icons_30
+            text_color: 0xFFFFFF
+            x: 2
+            y: 80
+
+        - label:
+            text: "\U000F09A0" #shower
+            text_font: icons_30
+            text_color: 0xFFFFFF
+            x: 105
+            y: 2
+        - label:
+            id: bathroom_temp
+            text: "0"
+            text_font: montserrat_30
+            text_color: 0xFFFFFF
+            x: 30
+            y: 50
+        - label:
+            id: bathroom_hum
+            text: "0"
+            text_font: montserrat_30
+            text_color: 0xFFFFFF
+            x: 30
+            y: 80
+
+        - label:
+            id: bathroom_window_icon
+            text: "\U000F11DC" #window
+            text_font: icons_60
+            text_color: 0xFFFFFF
+            x: 40
+            y: 140
+ 
+ 
+    - id: tv_control
+      on_load:
+          then:
+            - globals.set:
+                id: current_page
+                value: '"tv_control"'
+            - lvgl.widget.show:
+                id: tv_remote_buttons
+            - lvgl.widget.focus:
+                id: btn_tv_onoff
+      on_unload:
+          then:
+            - lvgl.widget.hide:
+                id: tv_remote_buttons
+            - logger.log: "tv_remote_buttons obj hidden"
+      scrollbar_mode: "OFF"
+      bg_color: 0x000000 
+      widgets:
+        - obj:
+            id: tv_remote_buttons
+            hidden: true
+            x: 0
+            y: 0
+            align: CENTER
+            width: 135
+            height: 240
+            pad_all: 0
+            bg_opa: TRANSP
+            border_opa: TRANSP
+            widgets:
+              - button:
+                  x: 2
+                  y: 2
+                  styles: smallbutton
+                  radius: 20
+                  width: 40
+                  height: 40
+                  bg_color: 0x000000
+                  border_color: 0x3b3b3b
+                  border_width: 1
+                  border_opa: cover
+                  focus_key:
+                    outline_color: white
+                    outline_width: 1
+                    outline_opa: cover
+                  id: btn_tv_onoff
+                  checkable: false
+                  on_click:
+                      - homeassistant.action:
+                          action: button.press
+                          data:
+                            entity_id: button.sonytvtoggle8266
+                  widgets:
+                    - label:
+                        x: 5
+                        align: CENTER
+                        text_font: icons_30
+                        text_color: 0xFFFFFF
+                        text: "\U000F0425"
+              - button:
+                  x: 2
+                  y: 60
+                  styles: smallbutton
+                  id: btn_tv_volumeplus
+                  checkable: false
+                  bg_color: 0x000000
+                  border_color: 0x3b3b3b
+                  border_width: 1
+                  border_opa: cover
+                  focus_key:
+                    outline_color: white
+                    outline_width: 1
+                    outline_opa: cover
+                  on_click:
+                      - homeassistant.action:
+                          action: button.press
+                          data:
+                            entity_id: button.sonytvvolumeup8266
+                  widgets:
+                    - label:
+                        align: CENTER
+                        text_font: icons_30
+                        text_color: 0xFFFFFF
+                        text: "\U000F075D"
+              - button:
+                  x: 65
+                  y: 60
+                  styles: smallbutton
+                  id: btn_tv_volumeminus
+                  checkable: false
+                  bg_color: 0x000000
+                  border_color: 0x3b3b3b
+                  border_width: 1
+                  border_opa: cover
+                  focus_key:
+                    outline_color: white
+                    outline_width: 1
+                    outline_opa: cover
+                  on_click:
+                      - homeassistant.action:
+                          action: button.press
+                          data:
+                            entity_id: button.sonytvvolumedown8266
+                  widgets:
+                    - label:
+                        align: CENTER
+                        text_font: icons_30
+                        text_color: 0xFFFFFF
+                        text: "\U000F075E"
+              - button:
+                  x: 2
+                  y: 120
+                  styles: smallbutton
+                  id: btn_tv_pause
+                  checkable: false
+                  bg_color: 0x000000
+                  border_color: 0x3b3b3b
+                  border_width: 1
+                  border_opa: cover
+                  focus_key:
+                    outline_color: white
+                    outline_width: 1
+                    outline_opa: cover
+                  on_focus:
+                    - logger.log: "focus"
+                  on_scroll:
+                    - logger.log: "scroll"
+                  on_defocus:
+                    - logger.log: "defocus"
+                  on_click:
+                      - homeassistant.action:
+                          action: button.press
+                          data:
+                            entity_id: button.sonytvpause8266
+                  widgets:
+                    - label:
+                        align: CENTER
+                        text_font: icons_30
+                        text_color: 0xFFFFFF
+                        text: "\U000F03E4"
+              - button:
+                  x: 65
+                  y: 120
+                  styles: smallbutton
+                  id: btn_tv_play
+                  checkable: false
+                  bg_color: 0x000000
+                  border_color: 0x3b3b3b
+                  border_width: 1
+                  border_opa: cover
+                  focus_key:
+                    outline_color: white
+                    outline_width: 1
+                    outline_opa: cover
+                  on_click:
+                      - homeassistant.action:
+                          action: button.press
+                          data:
+                            entity_id: button.sonytvplay8266
+                  widgets:
+                    - label:
+                        align: CENTER
+                        text_font: icons_30
+                        text_color: 0xFFFFFF
+                        text: "\U000F040A"
+              - button:
+                  x: 32
+                  y: 190
+                  styles: smallbutton
+                  id: btn_tv_mute
+                  checkable: false
+                  bg_color: 0x000000
+                  border_color: 0x3b3b3b
+                  border_width: 1
+                  border_opa: cover
+                  focus_key:
+                    outline_color: white
+                    outline_width: 1
+                    outline_opa: cover
+                  on_click:
+                      - homeassistant.action:
+                          action: button.press
+                          data:
+                            entity_id: button.sonytvmute8266
+                  widgets:
+                    - label:
+                        align: CENTER
+                        text_font: icons_30
+                        text_color: 0xFFFFFF
+                        text: "\U000F075F"
+        - label:
+            text: "\U000F07F4" #tv classic
+            text_font: icons_30
+            text_color: 0xFFFFFF
+            x: 105
+            y: 2
+
+
+      
+
+
+
+    - id: subway_infos
+      skip: true
+      on_load:
+          then:
+            - globals.set:
+                id: current_page
+                value: '"subway_infos"'
+      scrollbar_mode: "OFF"
+      bg_color: 0x000000 
+      widgets:
+        - label:
+            text: "\U000F1442" #clock
+            text_font: icons_30
+            text_color: 0xFFFFFF
+            x: 2
+            y: 50
+        - label:
+            text: "\U000F1442" #clock
+            text_font: icons_30
+            text_color: 0xFFFFFF
+            x: 2
+            y: 90
+        - label:
+            text: "\U000F052C" #train
+            text_font: icons_30
+            text_color: 0xFFFFFF
+            x: 105
+            y: 2
+        - label:
+            id: lbl_next_subway
+            text: "--:--"
+            text_font: montserrat_30
+            text_color: 0xFFFFFF
+            x: 40
+            y: 50
+        - label:
+            id: lbl_second_subway
+            text: "--:--"
+            text_font: montserrat_30
+            text_color: 0xFFFFFF
+            x: 40
+            y: 90
+            
+    - id: settings_page
+      skip: true
+      on_load:
+          then:
+            - globals.set:
+                id: current_page
+                value: '"settings_page"'
+      scrollbar_mode: "OFF"
+      bg_color: 0x000000 
+      #on_load:
+      #    then:
+      #      - lvgl.widget.enable:
+      #          id: sld_brightness
+      #      - lvgl.widget.focus:
+      #          id: sld_brightness
+      #          editing: true
+      #on_unload:
+      #    then:
+      #      - lvgl.widget.disable:
+      #          id: sld_brightness
+      widgets:
+        - label:
+            text: "\U000F0493" #cog
+            text_font: icons_30
+            text_color: 0xFFFFFF
+            x: 105
+            y: 2
+        - label:
+            text: "\U000F0084" #battery
+            text_font: icons_30
+            text_color: 0xFFFFFF
+            x: 2
+            y: 50
+        - label:
+            id: battery_voltage_settings
+            text: "0"
+            text_font: montserrat_30
+            text_color: 0xFFFFFF
+            x: 30
+            y: 50
+        - label:
+            text: "\U000F1616" #docked
+            text_font: icons_30
+            text_color: 0xFFFFFF
+            x: 2
+            y: 80
+        - label:
+            id: docking_status
+            text: "0"
+            text_font: montserrat_30
+            text_color: 0xFFFFFF
+            x: 30
+            y: 80
+        #- slider:
+        #    id: sld_brightness
+        #    x: 2
+        #    y: 140
+        #    width: 130
+        #    value: 50
+        #    min_value: 1
+        #    max_value: 10
+ 
+                  
+                  
+    - id: pc_control
+      skip: true
+      on_load:
+          then:
+            - globals.set:
+                id: current_page
+                value: '"pc_control"'
+      #on_load:
+      #    then:
+      #      - lvgl.widget.enable:
+      #          id: printer_switch
+      #      - lvgl.widget.enable:
+      #          id: tower_switch
+      #      #- lvgl.widget.focus:
+      #      #    id: printer_switch
+      #on_unload:
+      #    then:
+      #      - lvgl.widget.disable:
+      #          id: printer_switch
+      #      - lvgl.widget.disable:
+      #          id: tower_switch
+      scrollbar_mode: "OFF"
+      bg_color: 0x000000 
+      widgets:
+        - label:
+            text: "\U000F07C0" #desktop tower
+            text_font: icons_30
+            text_color: 0xFFFFFF
+            x: 2
+            y: 50
+        - label:
+            text: "\U000F042A" #printer
+            text_font: icons_30
+            text_color: 0xFFFFFF
+            x: 2
+            y: 100
+        - label:
+            text: "\U000F0AAB" #desktop classic
+            text_font: icons_30
+            text_color: 0xFFFFFF
+            x: 105
+            y: 2
+        #- switch:
+        #    id: printer_switch
+        #    x: 40
+        #    y: 100
+        #- switch:
+        #    id: tower_switch
+        #    x: 40
+        #    y: 50
+      
+                  
+
+    
+    - id: control_page
+      bg_color: 0x000000 
+      on_load:
+          then:
+            - globals.set:
+                id: current_page
+                value: '"control_page"'
+            - lvgl.widget.show:
+                id: button_frame
+            - lvgl.widget.focus:
+                id: btn_music_on
+      on_unload:
+          then:
+            - lvgl.widget.hide:
+                id: button_frame
+      widgets:
+        - obj:
+              width: 135
+              height: 240
+              pad_all: 0
+              id: button_frame
+              hidden: true
+              align: TOP_MID
+              scrollbar_mode: "OFF"
+              bg_opa: TRANSP
+              border_opa: TRANSP
+              layout: # enable the FLEX layout for the children widgets
+                type: FLEX
+                flex_flow: COLUMN # the order of the widgets starts top left
+                flex_align_cross: START
+              widgets:
+                - obj:
+                    pad_all: 0
+                    height: 48
+                    radius: 0
+                    bg_color: 0x00000
+                    border_color: 0x000000
+                    scrollbar_mode: "OFF"
+                    widgets:
+                      - button:
+                          x: 2
+                          y: 2
+                          styles: smallbutton
+                          id: btn_music_on
+                          checkable: false
+                          bg_color: 0x000000
+                          border_color: 0x3b3b3b
+                          border_width: 1
+                          border_opa: cover
+                          focus_key:
+                            outline_color: white
+                            outline_width: 1
+                            outline_opa: cover
+                          widgets:
+                            - label:
+                                align: CENTER
+                                text: "\U000F075A"
+                                text_font: icons_30
+                          on_click:
+                            - homeassistant.action:
+                                action: switch.turn_on
+                                data:
+                                  entity_id: switch.musicbox
+                      - button:
+                          styles: smallbutton
+                          x: 65
+                          y: 2
+                          id: btn_music_off
+                          checkable: false
+                          bg_color: 0x000000
+                          border_color: 0x3b3b3b
+                          border_width: 1
+                          border_opa: cover
+                          focus_key:
+                            outline_color: white
+                            outline_width: 1
+                            outline_opa: cover
+                          widgets:
+                            - label:
+                                align: CENTER
+                                text: "\U000F075B"
+                                text_font: icons_30
+                          on_click:
+                            - homeassistant.action:
+                                action: switch.turn_off
+                                data:
+                                  entity_id: switch.musicbox
+
+
+                            
+                            
+                - obj:
+                    pad_all: 0
+                    height: 48
+                    radius: 0
+                    bg_color: 0x00000
+                    border_color: 0x000000
+                    scrollbar_mode: "OFF"
+                    widgets:
+                      - button:
+                          x: 2
+                          y: 2
+                          styles: smallbutton
+                          id: btn_bookshelf_light
+                          width: 40
+                          checkable: false
+                          bg_color: 0x000000
+                          border_color: 0x3b3b3b
+                          border_width: 1
+                          border_opa: cover
+                          focus_key:
+                            outline_color: white
+                            outline_width: 1
+                            outline_opa: cover
+                          widgets:
+                            - label:
+                                align: CENTER
+                                text: "\U000F125F"
+                                text_font: icons_30
+                          on_click:
+                            - homeassistant.action:
+                                action: light.toggle
+                                data:
+                                  entity_id: light.bookshelf_e27_light
+                          on_focus:
+                            then:
+                              - globals.set:
+                                  id: updownsingle
+                                  value: 'true'
+                              - globals.set:
+                                  id: lighttochange
+                                  value: '"bookshelf"'
+                          on_defocus:
+                            then:
+                              - globals.set:
+                                  id: updownsingle
+                                  value: 'false'
+                      - bar:
+                          id: bookshelf_brightness
+                          x: 50
+                          y: 14
+                          width: 75
+                          height: 20
+                          radius: 0
+                          min_value: 0
+                          max_value: 255
+                          value: 1
+                          indicator:
+                            radius: 0
+                            bg_color: 0xFFFF00
+                          bg_color: 0x9e9e9e
+                          bg_opa: COVER
+                          
+                - obj:
+                    pad_all: 0
+                    height: 48
+                    radius: 0
+                    bg_color: 0x00000
+                    border_color: 0x000000
+                    scrollbar_mode: "OFF"
+                    widgets:
+                      - button:
+                          x: 2
+                          y: 2
+                          styles: smallbutton
+                          id: btn_sofa_light
+                          width: 40
+                          checkable: false
+                          bg_color: 0x000000
+                          border_color: 0x3b3b3b
+                          border_width: 1
+                          border_opa: cover
+                          focus_key:
+                            outline_color: white
+                            outline_width: 1
+                            outline_opa: cover
+                          widgets:
+                            - label:
+                                align: CENTER
+                                text: "\U000F04B9"
+                                text_font: icons_30
+                          on_click:
+                            - homeassistant.action:
+                                action: light.toggle
+                                data:
+                                  entity_id: light.rgb_bulb_e27_level_light_color_on_off
+                          on_focus:
+                            then:
+                              - globals.set:
+                                  id: updownsingle
+                                  value: 'true'
+                              - globals.set:
+                                  id: lighttochange
+                                  value: '"sofa"'
+                          on_defocus:
+                            then:
+                              - globals.set:
+                                  id: updownsingle
+                                  value: 'false'
+                      - bar:
+                          id: sofa_brightness
+                          x: 50
+                          y: 14
+                          width: 75
+                          height: 20
+                          radius: 0
+                          min_value: 0
+                          max_value: 255
+                          value: 1
+                          indicator:
+                            radius: 0
+                            bg_color: 0xFFFF00
+                          bg_color: 0x9e9e9e
+                          bg_opa: COVER
+                          
+                - obj:
+                    pad_all: 0
+                    height: 48
+                    radius: 0
+                    bg_color: 0x00000
+                    border_color: 0x000000
+                    scrollbar_mode: "OFF"
+                    widgets:
+                      - button:
+                          x: 2
+                          y: 2
+                          styles: smallbutton
+                          id: btn_plants_light
+                          width: 40
+                          checkable: false
+                          bg_color: 0x000000
+                          border_color: 0x3b3b3b
+                          border_width: 1
+                          border_opa: cover
+                          focus_key:
+                            outline_color: white
+                            outline_width: 1
+                            outline_opa: cover
+                          widgets:
+                            - label:
+                                align: CENTER
+                                text: "\U000F024A"
+                                text_font: icons_30
+                          on_click:
+                            - homeassistant.action:
+                                action: light.toggle
+                                data:
+                                  entity_id: light.hallway_plantlight_light
+                          on_focus:
+                            then:
+                              - globals.set:
+                                  id: updownsingle
+                                  value: 'true'
+                              - globals.set:
+                                  id: lighttochange
+                                  value: '"plants"'
+                          on_defocus:
+                            then:
+                              - globals.set:
+                                  id: updownsingle
+                                  value: 'false'
+                      - bar:
+                          id: plants_brightness
+                          x: 50
+                          y: 14
+                          width: 75
+                          height: 20
+                          radius: 0
+                          min_value: 0
+                          max_value: 255
+                          value: 1
+                          indicator:
+                            radius: 0
+                            bg_color: 0xFFFF00
+                          bg_color: 0x9e9e9e
+                          bg_opa: COVER
+                          
+                - obj:
+                    pad_all: 0
+                    height: 48
+                    radius: 0
+                    bg_color: 0x00000
+                    border_color: 0x000000
+                    scrollbar_mode: "OFF"
+                    widgets:
+                      - button:
+                          x: 2
+                          y: 2
+                          styles: smallbutton
+                          id: btn_hallway_light
+                          width: 40
+                          checkable: false
+                          bg_color: 0x000000
+                          border_color: 0x3b3b3b
+                          border_width: 1
+                          border_opa: cover
+                          focus_key:
+                            outline_color: white
+                            outline_width: 1
+                            outline_opa: cover
+                          widgets:
+                            - label:
+                                align: CENTER
+                                text: "\U000F081A"
+                                text_font: icons_30
+                          on_click:
+                            - homeassistant.action:
+                                action: light.toggle
+                                data:
+                                  entity_id: light.ikea_of_sweden_stoftmoln_ceiling_wall_lamp_ww24_light
+                          on_focus:
+                            then:
+                              - globals.set:
+                                  id: updownsingle
+                                  value: 'true'
+                              - globals.set:
+                                  id: lighttochange
+                                  value: '"hallway"'
+                          on_defocus:
+                            then:
+                              - globals.set:
+                                  id: updownsingle
+                                  value: 'false'
+                      - bar:
+                          id: hallway_brightness
+                          x: 50
+                          y: 14
+                          width: 75
+                          height: 20
+                          radius: 0
+                          min_value: 0
+                          max_value: 255
+                          value: 100
+                          indicator:
+                            radius: 0
+                            bg_color: 0xFFFF00
+                          bg_color: 0x9e9e9e
+                          bg_opa: COVER                
+                            
+ 
+                - button:
+                    styles: standardbutton
+                    id: btn_livingroom_on
+                    checkable: false
+                    bg_color: 0x000000
+                    border_color: 0x3b3b3b
+                    border_width: 1
+                    border_opa: cover
+                    focus_key:
+                      outline_color: white
+                      outline_width: 1
+                      outline_opa: cover
+                    widgets:
+                      - label:
+                          align: CENTER
+                          text: "\U000F04B9\U000F06E8"
+                          text_font: icons_30
+                    on_click:
+                      - homeassistant.action:
+                          action: switch.turn_on
+                          data:
+                            entity_id: switch.livingroom_cozylight
+                      - homeassistant.action:
+                          action: switch.turn_on
+                          data:
+                            entity_id: switch.desk_light
+                - button:
+                    styles: standardbutton
+                    id: btn_livingroom_off
+                    checkable: false
+                    bg_color: 0x000000
+                    border_color: 0x3b3b3b
+                    border_width: 1
+                    border_opa: cover
+                    focus_key:
+                      outline_color: white
+                      outline_width: 1
+                      outline_opa: cover
+                    widgets:
+                      - label:
+                          align: CENTER
+                          text: "\U000F04B9\U000F0E4F"
+                          text_font: icons_30
+                    on_click:
+                      - homeassistant.action:
+                          action: switch.turn_off
+                          data:
+                            entity_id: switch.livingroom_cozylight
+                      - homeassistant.action:
+                          action: switch.turn_off
+                          data:
+                            entity_id: switch.desk_light
+ 
+                - button:
+                    styles: standardbutton
+                    id: btn_bedroom_on
+                    checkable: false
+                    bg_color: 0x000000
+                    border_color: 0x3b3b3b
+                    border_width: 1
+                    border_opa: cover
+                    focus_key:
+                      outline_color: white
+                      outline_width: 1
+                      outline_opa: cover
+                    widgets:
+                      - label:
+                          align: CENTER
+                          text: "\U000F02E3\U000F06E8"
+                          text_font: icons_30
+                    on_click:
+                      - homeassistant.action:
+                          action: switch.turn_on
+                          data:
+                            entity_id: switch.bedroom_cozylight               
+                            
+                            
+                - button:
+                    styles: standardbutton
+                    id: btn_bedroom_off
+                    checkable: false
+                    bg_color: 0x000000
+                    border_color: 0x3b3b3b
+                    border_width: 1
+                    border_opa: cover
+                    focus_key:
+                      outline_color: white
+                      outline_width: 1
+                      outline_opa: cover
+                    widgets:
+                      - label:
+                          align: CENTER
+                          text: "\U000F02E3\U000F0E4F"
+                          text_font: icons_30
+                    on_click:
+                      - homeassistant.action:
+                          action: switch.turn_off
+                          data:
+                            entity_id: switch.bedroom_cozylight
+                - button:
+                    styles: standardbutton
+                    id: btn_headstart
+                    checkable: false
+                    bg_color: 0x000000
+                    border_color: 0x3b3b3b
+                    border_width: 1
+                    border_opa: cover
+                    focus_key:
+                      outline_color: white
+                      outline_width: 1
+                      outline_opa: cover
+                    widgets:
+                      - label:
+                          align: CENTER
+                          text: "\U000F1B94"
+                          text_font: icons_30
+                    on_click:
+                      - homeassistant.action:
+                          action: script.headstart_mode
+
+
+
+                  
+                          
+                          
+                          
