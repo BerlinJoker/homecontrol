@@ -29,6 +29,7 @@ Software:
 - esphome
 - lvgl
 - material design icons via ttf font
+- uses https://github.com/BerlinJoker/tv-ir-blaster via HA to control the TV
 
 Motivation:
 
